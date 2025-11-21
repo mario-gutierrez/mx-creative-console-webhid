@@ -120,19 +120,17 @@
     <div id="logs"></div>
 
     <script>
-        // --- Constants derived from Repository ---
         const VENDOR_ID = 0x046d; // Logitech
         const PRODUCT_ID = 0xc354; // MX Creative Keypad
         const LCD_SIZE = 118; // 118x118 pixels per button
 
-        // Initialize sequences (from packages/core/src/models/mx-creative-keypad.ts)
-        // Only the active ones from the repo file were kept
+        // Initialize sequences 
         const INIT_REPORTS = [
             new Uint8Array([0x11, 0xff, 0x0b, 0x3b, 0x01, 0xa1, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
             new Uint8Array([0x11, 0xff, 0x0b, 0x3b, 0x01, 0xa2, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
         ];
 
-        // Mapping HID internal IDs to our 0-8 index (derived from controlsGenerator.ts)
+        // Mapping HID internal IDs to our 0-8 index
         // The device reports specific IDs for buttons. 1-9 are the grid.
         const HID_ID_TO_INDEX = {
             1: 0, 2: 1, 3: 2,
@@ -207,18 +205,14 @@
             }
         });
 
-        // Handle Button Presses (Derived from packages/core/src/services/input/mx-creative-keypad.ts)
+        // Handle Button Presses
         function handleInput(event) {
             const { reportId, data } = event;
-
-            // FIX: Use the DataView provided by the event directly.
-            // Re-creating it via new DataView(data.buffer) loses the byteOffset,
-            // causing us to read the header byte (0x01) as the first button press.
             const view = data;
 
             // Report 0x13: Grid Buttons
             if (reportId === 0x13) {
-                // Strict header validation from repository to ensure alignment
+                // Strict header validation to ensure alignment
                 // Bytes: FF 02 00 [XX] 01 ...
                 if (view.byteLength < 5) return;
                 if (view.getUint8(0) !== 0xff ||
@@ -252,7 +246,7 @@
                 for (let i = 3; i < view.byteLength; i += 2) {
                     if (i + 1 >= view.byteLength) break;
 
-                    // Little-endian false (Big Endian) matches the repository logic
+                    // Little-endian false (Big Endian)
                     const val = view.getUint16(i, false);
 
                     if (val === 0) break;
@@ -286,7 +280,7 @@
             }
         }
 
-        // --- Image Sending Logic (The complex part) ---
+        // --- Image Sending Logic ---
 
         async function updateKeyImage(index) {
             if (!device) return;
@@ -309,23 +303,17 @@
             ctx.fillText(index + 1, LCD_SIZE / 2, LCD_SIZE / 2);
 
             // 2. Convert to JPEG Blob (Crucial: Device requires JPEG)
-            // packages/webhid/src/jpeg.ts
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
             const buffer = await blob.arrayBuffer();
             const uint8Buffer = new Uint8Array(buffer);
 
-            // 3. Construct Packets (packages/core/src/services/imageWriter/imageWriter.ts)
+            // 3. Construct Packets
             const packets = generateImagePackets(index, uint8Buffer);
 
             // 4. Send Packets
             for (const packet of packets) {
                 // Report ID is 0x14 (20) for image data
                 // packet includes header + data. 
-                // WebHID sendReport takes (reportId, data).
-                // The generated packets usually include the reportId at index 0 if coming from raw HID logic,
-                // but the repo splits it: `packet1View.setUint8(0, 0x14)`.
-                // We need to check if the repository code includes the ReportID in the buffer or not.
-                // Looking at `MXConsoleDefaultImageWriter`: it sets byte 0 to 0x14. 
                 // WebHID `sendReport` expects the ID as the first arg, and the REST of the data as the second.
 
                 // The packet generated below starts with 0x14. We strip it for sendReport.
@@ -334,13 +322,12 @@
             log(`Updated Image on Key ${index}`);
         }
 
-        // Logic ported from packages/core/src/services/imageWriter/imageWriter.ts
         function generateImagePackets(keyIndex, jpegData) {
-            const MAX_PACKET_SIZE = 4095; // Defined in repo
+            const MAX_PACKET_SIZE = 4095;
             const result = [];
 
             // Coordinates for the specific key.
-            // In the repo this is calculated dynamically. For a 3x3 grid:
+            // This is calculated dynamically. For a 3x3 grid:
             // x: 23 + col * (118 + 40)
             // y: 6 + row * (118 + 40)
             const row = Math.floor(keyIndex / 3);
@@ -402,7 +389,7 @@
             return result;
         }
 
-        // Helper for the bitmask logic in the header (from repo)
+        // Helper for the bitmask logic in the header
         function generateWritePacketByte(index, isFirst, isLast) {
             let value = index | 0b00100000;
             if (isFirst) value |= 0b10000000;
