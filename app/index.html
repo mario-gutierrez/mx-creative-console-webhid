@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logitech MX Creative Console - Single File Demo</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        /* Keypad Visualizer */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            background: #333;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .key {
+            width: 100px;
+            height: 100px;
+            background: #000;
+            border: 2px solid #444;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: border-color 0.1s;
+        }
+
+        .key.pressed {
+            border-color: #0f0;
+        }
+
+        /* The paging buttons at the bottom */
+        .paging-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .page-key {
+            width: 50px;
+            height: 50px;
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-key.pressed {
+            background: #0f0;
+            color: #000;
+        }
+
+        #logs {
+            width: 100%;
+            max-width: 600px;
+            height: 150px;
+            background: #111;
+            border: 1px solid #333;
+            margin-top: 20px;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>MX Creative Console WebHID</h1>
+    <button id="btnConnect">Connect Device</button>
+
+    <div id="ui-layer" style="opacity: 0.5; pointer-events: none;">
+        <div class="grid-container" id="grid">
+        </div>
+        <div class="paging-container" id="paging">
+            <div class="page-key" id="key-9">P1</div>
+            <div class="page-key" id="key-10">P2</div>
+        </div>
+    </div>
+
+    <div id="logs"></div>
+
+    <script>
+        // --- Constants derived from Repository ---
+        const VENDOR_ID = 0x046d; // Logitech
+        const PRODUCT_ID = 0xc354; // MX Creative Keypad
+        const LCD_SIZE = 118; // 118x118 pixels per button
+
+        // Initialize sequences (from packages/core/src/models/mx-creative-keypad.ts)
+        // Only the active ones from the repo file were kept
+        const INIT_REPORTS = [
+            new Uint8Array([0x11, 0xff, 0x0b, 0x3b, 0x01, 0xa1, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            new Uint8Array([0x11, 0xff, 0x0b, 0x3b, 0x01, 0xa2, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+        ];
+
+        // Mapping HID internal IDs to our 0-8 index (derived from controlsGenerator.ts)
+        // The device reports specific IDs for buttons. 1-9 are the grid.
+        const HID_ID_TO_INDEX = {
+            1: 0, 2: 1, 3: 2,
+            4: 3, 5: 4, 6: 5,
+            7: 6, 8: 7, 9: 8,
+            0x01a1: 9, // Page Left
+            0x01a2: 10 // Page Right
+        };
+
+        // --- App State ---
+        let device = null;
+        const logEl = document.getElementById('logs');
+
+        // --- Logger Helper ---
+        function log(msg) {
+            const div = document.createElement('div');
+            div.textContent = `> ${msg}`;
+            logEl.prepend(div);
+        }
+
+        // --- Initialization ---
+        function initUI() {
+            const grid = document.getElementById('grid');
+            for (let i = 0; i < 9; i++) {
+                const k = document.createElement('div');
+                k.className = 'key';
+                k.id = `key-${i}`;
+                k.innerText = i + 1;
+                // Click to update image demo
+                k.onclick = () => updateKeyImage(i);
+                grid.appendChild(k);
+            }
+        }
+        initUI();
+
+        // --- Core Logic ---
+
+        document.getElementById('btnConnect').addEventListener('click', async () => {
+            try {
+                // 1. Request Device
+                const devices = await navigator.hid.requestDevice({
+                    filters: [{ vendorId: VENDOR_ID, productId: PRODUCT_ID }]
+                });
+
+                if (devices.length === 0) return;
+                device = devices[0];
+
+                // 2. Open Device
+                await device.open();
+                log(`Connected: ${device.productName}`);
+
+                // 3. Init Sequence
+                for (const report of INIT_REPORTS) {
+                    // report[0] is reportId, rest is data
+                    await device.sendReport(report[0], report.slice(1));
+                }
+
+                // 4. Listen for Input
+                device.addEventListener('inputreport', handleInput);
+
+                // Enable UI
+                document.getElementById('ui-layer').style.opacity = '1';
+                document.getElementById('ui-layer').style.pointerEvents = 'auto';
+                document.getElementById('btnConnect').disabled = true;
+
+                // Clear visual state
+                // In a real app, we might loop 0-8 and send black images
+
+            } catch (err) {
+                console.error(err);
+                log(`Error: ${err.message}`);
+            }
+        });
+
+        // Handle Button Presses (Derived from packages/core/src/services/input/mx-creative-keypad.ts)
+        function handleInput(event) {
+            const { reportId, data } = event;
+
+            // FIX: Use the DataView provided by the event directly.
+            // Re-creating it via new DataView(data.buffer) loses the byteOffset,
+            // causing us to read the header byte (0x01) as the first button press.
+            const view = data;
+
+            // Report 0x13: Grid Buttons
+            if (reportId === 0x13) {
+                // Strict header validation from repository to ensure alignment
+                // Bytes: FF 02 00 [XX] 01 ...
+                if (view.byteLength < 5) return;
+                if (view.getUint8(0) !== 0xff ||
+                    view.getUint8(1) !== 0x02 ||
+                    view.getUint8(2) !== 0x00 ||
+                    view.getUint8(4) !== 0x01) return;
+
+                const activeIndexes = new Set();
+
+                // Bytes 5 onwards contain the active button IDs
+                for (let i = 5; i < view.byteLength; i++) {
+                    const val = view.getUint8(i);
+                    if (val === 0) break; // 0 padding marks end of list
+                    if (HID_ID_TO_INDEX[val] !== undefined) {
+                        activeIndexes.add(HID_ID_TO_INDEX[val]);
+                    }
+                }
+                updateUIState(activeIndexes, 'grid');
+            }
+
+            // Report 0x11: Paging Buttons
+            else if (reportId === 0x11) {
+                // Validate header: FF 0B 00
+                if (view.byteLength < 3) return;
+                if (view.getUint8(0) !== 0xff ||
+                    view.getUint8(1) !== 0x0b ||
+                    view.getUint8(2) !== 0x00) return;
+
+                const activeIndexes = new Set();
+                // Paging buttons use 16-bit IDs starting at offset 3
+                for (let i = 3; i < view.byteLength; i += 2) {
+                    if (i + 1 >= view.byteLength) break;
+
+                    // Little-endian false (Big Endian) matches the repository logic
+                    const val = view.getUint16(i, false);
+
+                    if (val === 0) break;
+                    if (HID_ID_TO_INDEX[val] !== undefined) {
+                        activeIndexes.add(HID_ID_TO_INDEX[val]);
+                    }
+                }
+                updateUIState(activeIndexes, 'page');
+            }
+        }
+
+        function updateUIState(activeSet, type) {
+            const start = type === 'grid' ? 0 : 9;
+            const end = type === 'grid' ? 8 : 10;
+
+            for (let i = start; i <= end; i++) {
+                const el = document.getElementById(`key-${i}`);
+                if (activeSet.has(i)) {
+                    if (!el.classList.contains('pressed')) {
+                        el.classList.add('pressed');
+                        log(`Button ${i} Down`);
+                        // If grid button pressed, fill with random color
+                        if (i < 9) updateKeyImage(i);
+                    }
+                } else {
+                    if (el.classList.contains('pressed')) {
+                        el.classList.remove('pressed');
+                        log(`Button ${i} Up`);
+                    }
+                }
+            }
+        }
+
+        // --- Image Sending Logic (The complex part) ---
+
+        async function updateKeyImage(index) {
+            if (!device) return;
+
+            // 1. Generate a Random Color Canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = LCD_SIZE;
+            canvas.height = LCD_SIZE;
+            const ctx = canvas.getContext('2d');
+
+            const color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, LCD_SIZE, LCD_SIZE);
+
+            // Add text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(index + 1, LCD_SIZE / 2, LCD_SIZE / 2);
+
+            // 2. Convert to JPEG Blob (Crucial: Device requires JPEG)
+            // packages/webhid/src/jpeg.ts
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+            const buffer = await blob.arrayBuffer();
+            const uint8Buffer = new Uint8Array(buffer);
+
+            // 3. Construct Packets (packages/core/src/services/imageWriter/imageWriter.ts)
+            const packets = generateImagePackets(index, uint8Buffer);
+
+            // 4. Send Packets
+            for (const packet of packets) {
+                // Report ID is 0x14 (20) for image data
+                // packet includes header + data. 
+                // WebHID sendReport takes (reportId, data).
+                // The generated packets usually include the reportId at index 0 if coming from raw HID logic,
+                // but the repo splits it: `packet1View.setUint8(0, 0x14)`.
+                // We need to check if the repository code includes the ReportID in the buffer or not.
+                // Looking at `MXConsoleDefaultImageWriter`: it sets byte 0 to 0x14. 
+                // WebHID `sendReport` expects the ID as the first arg, and the REST of the data as the second.
+
+                // The packet generated below starts with 0x14. We strip it for sendReport.
+                await device.sendReport(packet[0], packet.slice(1));
+            }
+            log(`Updated Image on Key ${index}`);
+        }
+
+        // Logic ported from packages/core/src/services/imageWriter/imageWriter.ts
+        function generateImagePackets(keyIndex, jpegData) {
+            const MAX_PACKET_SIZE = 4095; // Defined in repo
+            const result = [];
+
+            // Coordinates for the specific key.
+            // In the repo this is calculated dynamically. For a 3x3 grid:
+            // x: 23 + col * (118 + 40)
+            // y: 6 + row * (118 + 40)
+            const row = Math.floor(keyIndex / 3);
+            const col = keyIndex % 3;
+            const x = 23 + col * (118 + 40); // 40 is gap
+            const y = 6 + row * (118 + 40);
+
+            // Packet 1 Setup
+            const PACKET1_HEADER = 20;
+            const packet1Size = MAX_PACKET_SIZE;
+            const packet1 = new Uint8Array(packet1Size);
+            const byteCount1 = Math.min(jpegData.length, MAX_PACKET_SIZE - PACKET1_HEADER);
+
+            packet1.set(jpegData.subarray(0, byteCount1), PACKET1_HEADER);
+
+            const view1 = new DataView(packet1.buffer);
+            view1.setUint8(0, 0x14); // Report ID
+            view1.setUint8(1, 0xff);
+            view1.setUint8(2, 0x02);
+            view1.setUint8(3, 0x2b); // Command for drawing
+            // Part byte: index=1, isFirst=true, isLast=(total <= space)
+            view1.setUint8(4, generateWritePacketByte(1, true, byteCount1 >= jpegData.length));
+            view1.setUint16(5, 0x0100); // Fixed magic
+            view1.setUint16(7, 0x0100); // Fixed magic
+            view1.setUint16(9, x);      // X pos
+            view1.setUint16(11, y);     // Y pos
+            view1.setUint16(13, LCD_SIZE); // W
+            view1.setUint16(15, LCD_SIZE); // H
+            view1.setUint16(18, jpegData.length); // Total JPEG size
+
+            result.push(packet1);
+
+            // Subsequent Packets
+            let remainingBytes = jpegData.length - byteCount1;
+            let currentOffset = byteCount1;
+            let part = 2;
+
+            while (remainingBytes > 0) {
+                const packet = new Uint8Array(MAX_PACKET_SIZE);
+                const headerSize = 5;
+                const byteCount = Math.min(remainingBytes, MAX_PACKET_SIZE - headerSize);
+
+                packet.set(jpegData.subarray(currentOffset, currentOffset + byteCount), headerSize);
+
+                const view = new DataView(packet.buffer);
+                view.setUint8(0, 0x14);
+                view.setUint8(1, 0xff);
+                view.setUint8(2, 0x02);
+                view.setUint8(3, 0x2b);
+                view.setUint8(4, generateWritePacketByte(part, false, remainingBytes - byteCount === 0));
+
+                result.push(packet);
+
+                remainingBytes -= byteCount;
+                currentOffset += byteCount;
+                part++;
+            }
+
+            return result;
+        }
+
+        // Helper for the bitmask logic in the header (from repo)
+        function generateWritePacketByte(index, isFirst, isLast) {
+            let value = index | 0b00100000;
+            if (isFirst) value |= 0b10000000;
+            if (isLast) value |= 0b01000000;
+            return value;
+        }
+
+    </script>
+</body>
+
+</html>
