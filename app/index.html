@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MX Creative Console - Module Demo</title>
+    <style>
+        body {
+            font-family: system-ui;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .key {
+            width: 100px;
+            height: 100px;
+            background: #000;
+            border: 2px solid #444;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.1s;
+        }
+
+        .key.pressed {
+            border-color: #0f0;
+        }
+
+        .paging {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #555;
+        }
+
+        .page-btn.pressed {
+            background: #0f0;
+            color: black;
+        }
+
+        #log {
+            font-family: monospace;
+            margin-top: 20px;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>MX Creative Console</h1>
+    <button id="connectBtn">Connect Device</button>
+
+    <div class="grid" id="grid"></div>
+    <div class="paging">
+        <div class="page-btn" id="key-9">P1</div>
+        <div class="page-btn" id="key-10">P2</div>
+    </div>
+    <div id="log">Waiting for connection...</div>
+
+    <script type="module">
+        import { MXCreativeConsole } from './mx-creative-console.js';
+
+        const mx = new MXCreativeConsole();
+        const gridEl = document.getElementById('grid');
+        const logEl = document.getElementById('log');
+
+        // --- UI Setup ---
+        // Generate 9 grid buttons
+        for (let i = 0; i < 9; i++) {
+            const div = document.createElement('div');
+            div.className = 'key';
+            div.id = `key-${i}`;
+            div.innerText = i + 1;
+            div.onclick = () => updateButtonImage(i); // Demo: Click to send image
+            gridEl.appendChild(div);
+        }
+
+        // --- Library Events ---
+
+        mx.addEventListener('connected', (e) => {
+            logEl.innerText = `Connected: ${e.detail.device.productName}`;
+            document.getElementById('connectBtn').disabled = true;
+
+            // Clear all keys to cyan on connect
+            for (let i = 0; i < 9; i++) updateButtonImage(i, 200);
+        });
+
+        mx.addEventListener('keydown', (e) => {
+            const keyIndex = e.detail.key;
+            logEl.innerText = `Key Down: ${keyIndex}`;
+            const el = document.getElementById(`key-${keyIndex}`);
+            if (el) el.classList.add('pressed');
+
+            // If it's a grid key, send a random image update on press
+            if (keyIndex < 9) updateButtonImage(keyIndex);
+        });
+
+        mx.addEventListener('keyup', (e) => {
+            const keyIndex = e.detail.key;
+            logEl.innerText = `Key Up: ${keyIndex}`;
+            const el = document.getElementById(`key-${keyIndex}`);
+            if (el) el.classList.remove('pressed');
+        });
+
+        // --- Connect Button ---
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            mx.connect().catch(e => alert(e.message));
+        });
+
+        // --- Helper: Generate Image (Application Logic) ---
+        // The library expects a Blob, so the app generates the visual content.
+        async function updateButtonImage(index, color = -1) {
+            const colorHue = color >= 0 ? color : (Math.random() * 360);
+            const size = 118;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Draw random color
+            ctx.fillStyle = `hsl(${colorHue}, 100%, 40%)`;
+            ctx.fillRect(0, 0, size, size);
+
+            // Draw Text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(index + 1, size / 2, size / 2);
+
+            // Convert to JPEG Blob and send to library
+            canvas.toBlob((blob) => {
+                mx.setKeyImage(index, blob);
+            }, 'image/jpeg', 0.9);
+        }
+    </script>
+</body>
+
+</html>
