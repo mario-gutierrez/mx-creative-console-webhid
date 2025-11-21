@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Loader</title>
+    <style>
+        /* Base Styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            /* slate-50 */
+            color: #1e293b;
+            /* slate-800 */
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* Layout Utilities */
+        .container {
+            max-width: 56rem;
+            /* approx 900px */
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #4f46e5;
+            /* indigo-600 */
+            margin: 0 0 0.5rem 0;
+        }
+
+        .header p {
+            color: #64748b;
+            /* slate-500 */
+            margin: 0;
+        }
+
+        /* File Upload Card */
+        .upload-card {
+            width: 100%;
+            max-width: 28rem;
+            padding: 1.5rem;
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            box-sizing: border-box;
+        }
+
+        .file-label {
+            display: block;
+            width: 100%;
+        }
+
+        /* Custom File Input Styling */
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        input[type="file"]::file-selector-button {
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: 0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background-color: #eef2ff;
+            /* indigo-50 */
+            color: #4338ca;
+            /* indigo-700 */
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background-color: #e0e7ff;
+            /* indigo-100 */
+        }
+
+        /* Results Area */
+        #resultsArea {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+            align-items: center;
+        }
+
+        .section-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #334155;
+            margin: 0;
+        }
+
+        .section-subtitle {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin: 0;
+        }
+
+        /* Main Canvas Styling */
+        .canvas-wrapper {
+            padding: 0.5rem;
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        #mainCanvas {
+            image-rendering: high-quality;
+            max-width: 100%;
+            height: auto;
+            width: 354px;
+            /* Preview size */
+            display: block;
+            border: 1px solid #f1f5f9;
+        }
+
+        /* Grid Styling */
+        #gridContainer {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            /* The specific 5px gap requested */
+            background-color: #e2e8f0;
+            padding: 5px;
+            border-radius: 0.5rem;
+            width: 354px;
+            box-sizing: border-box;
+        }
+
+        .grid-cell-canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            background-color: white;
+            image-rendering: high-quality;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Header -->
+        <div class="header">
+            <h1>Image Loader</h1>
+            <p>Upload an image to visualize it on the MX Keypad.</p>
+        </div>
+
+        <!-- Controls -->
+        <button id="connectBtn">Connect MX Keypad</button>
+
+        <div class="upload-card">
+            <label class="file-label">
+                <input type="file" id="imageInput" accept="image/*" />
+            </label>
+        </div>
+
+        <!-- Results Section (Hidden until image loaded) -->
+        <div id="resultsArea" class="hidden">
+
+            <!-- Main Processed Canvas -->
+            <div class="section-group">
+                <h2 class="section-title">Processed Source (354x354)</h2>
+                <p class="section-subtitle">Scaled down</p>
+                <div class="canvas-wrapper">
+                    <canvas id="mainCanvas" width="354" height="354"></canvas>
+                </div>
+            </div>
+
+            <!-- The 3x3 Grid -->
+            <div class="section-group">
+                <h2 class="section-title">3x3 Grid</h2>
+                <div id="gridContainer">
+                    <!-- Javascript will inject 9 canvases here -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { MXCreativeConsole } from './mx-creative-console.js';
+
+        const mx = new MXCreativeConsole();
+        // --- MX Console Events ---
+
+        mx.addEventListener('connected', (e) => {
+            console.log(`Connected: ${e.detail.device.productName}`);
+            document.getElementById('connectBtn').disabled = true;
+        });
+
+        // mx.addEventListener('keydown', (e) => {
+        //     const keyIndex = e.detail.key;
+        //     logEl.innerText = `Key Down: ${keyIndex}`;
+        //     const el = document.getElementById(`key-${keyIndex}`);
+        //     if (el) el.classList.add('pressed');
+
+        //     // If it's a grid key, send a random image update on press
+        //     if (keyIndex < 9) updateButtonImage(keyIndex);
+        // });
+
+        // mx.addEventListener('keyup', (e) => {
+        //     const keyIndex = e.detail.key;
+        //     logEl.innerText = `Key Up: ${keyIndex}`;
+        //     const el = document.getElementById(`key-${keyIndex}`);
+        //     if (el) el.classList.remove('pressed');
+        // });
+
+        // --- Connect Button ---
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            mx.connect().catch(e => alert(e.message));
+        });
+
+        // Configuration
+        const TARGET_SIZE = 354;
+        const GRID_ROWS = 3;
+        const GRID_COLS = 3;
+
+        // DOM Elements
+        const fileInput = document.getElementById('imageInput');
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+        const gridContainer = document.getElementById('gridContainer');
+        const resultsArea = document.getElementById('resultsArea');
+
+        fileInput.addEventListener('change', handleImageUpload);
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const img = new Image();
+                img.onload = function () {
+                    processImage(img);
+                };
+                img.src = event.target.result;
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function processImage(img) {
+            // 1. Reveal results area
+            resultsArea.classList.remove('hidden');
+
+            // 2. Clear canvas
+            ctx.clearRect(0, 0, TARGET_SIZE, TARGET_SIZE);
+
+            // 3. Calculate Crop (Center Crop logic)
+            const sourceWidth = img.naturalWidth;
+            const sourceHeight = img.naturalHeight;
+            let sx, sy, sSize;
+
+            if (sourceWidth > sourceHeight) {
+                // Landscape
+                sSize = sourceHeight;
+                sx = (sourceWidth - sourceHeight) / 2;
+                sy = 0;
+            } else {
+                // Portrait or Square
+                sSize = sourceWidth;
+                sx = 0;
+                sy = (sourceHeight - sourceWidth) / 2;
+            }
+
+            // Draw to Main Canvas
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, TARGET_SIZE, TARGET_SIZE);
+            ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, TARGET_SIZE, TARGET_SIZE);
+
+            // 4. Create Grid
+            createGrid();
+        }
+
+        function createGrid() {
+            const gridCells = [];
+            // Clear previous grid
+            gridContainer.innerHTML = '';
+
+            const cellWidth = TARGET_SIZE / GRID_COLS;
+            const cellHeight = TARGET_SIZE / GRID_ROWS;
+
+            for (let row = 0; row < GRID_ROWS; row++) {
+                for (let col = 0; col < GRID_COLS; col++) {
+
+                    // Create a new canvas for this cell
+                    const cellCanvas = document.createElement('canvas');
+                    cellCanvas.width = cellWidth;
+                    cellCanvas.height = cellHeight;
+                    cellCanvas.className = 'grid-cell-canvas';
+
+                    const cellCtx = cellCanvas.getContext('2d');
+
+                    // Calculate where to take the data from the Main Canvas
+                    const sourceX = col * cellWidth;
+                    const sourceY = row * cellHeight;
+
+                    // Draw the specific section
+                    cellCtx.drawImage(
+                        mainCanvas,
+                        sourceX, sourceY, cellWidth, cellHeight,
+                        0, 0, cellWidth, cellHeight
+                    );
+
+                    // Append to DOM
+                    gridContainer.appendChild(cellCanvas);
+                    gridCells.push(cellCanvas);
+                }
+            }
+
+            runDelayedLoop();
+        }
+
+        async function runDelayedLoop() {
+            const gridCells = document.querySelectorAll('.grid-cell-canvas');
+
+            for (let index = 0; index < gridCells.length; index++) {
+
+                // 1. Create a promise for the blob generation
+                await new Promise((resolve) => {
+                    gridCells[index].toBlob((blob) => {
+                        mx.setKeyImage(index, blob); // Send image to MX Keypad
+                        resolve(); // Signal blob is ready
+                    }, 'image/jpeg', 0.9);
+                });
+
+                // 2. Wait 5ms before pushing the next image
+                await new Promise(r => setTimeout(r, 5));
+            }
+
+            console.log("Loop finished.");
+        }
+    </script>
+</body>
+
+</html>
