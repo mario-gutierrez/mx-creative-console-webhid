@@ -704,11 +704,30 @@ export class MXCreativeConsoleClient {
                     throw new Error(`Expected at least 9 buttons, got ${this.contextualDisplayInfo.buttons.length}.`);
                 }
 
+                // Encode once when all buttons share the same dimensions (always the case on
+                // MX Creative Console — all nine LCDs are 118×118), then reuse the JPEG bytes
+                // for each setImage call.  Without this, encodeAreaImage (canvas creation +
+                // JPEG encoding) ran 9× for identical output.
+                const firstButton = this.contextualDisplayInfo.buttons[0];
+                const allSameSize = this.contextualDisplayInfo.buttons.slice(0, 9).every(
+                    (b) => b.location.w === firstButton.location.w && b.location.h === firstButton.location.h
+                );
+
+                let sharedEncoded = null;
                 for (let index = 0; index < 9; index++) {
                     const button = this.contextualDisplayInfo.buttons[index];
-                    const encoded = await this.encodeAreaImage(bitmap, button.location.w, button.location.h);
+                    let encoded;
+                    if (allSameSize) {
+                        if (!sharedEncoded) {
+                            sharedEncoded = await this.encodeAreaImage(bitmap, button.location.w, button.location.h);
+                        }
+                        encoded = sharedEncoded;
+                    } else {
+                        encoded = await this.encodeAreaImage(bitmap, button.location.w, button.location.h);
+                    }
                     const defer = index < 8;
 
+                    this.status(`Uploading image to key ${index + 1} of 9…`);
                     await this.contextualDisplayFeature.setImage(1, defer, [{
                         imageFormat: encoded.imageFormat,
                         location: button.location,
