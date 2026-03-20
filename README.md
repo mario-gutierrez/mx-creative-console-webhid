@@ -4,6 +4,10 @@ Reusable browser JavaScript library for Logitech MX Creative Console devices (Ke
 
 ![MX Creative Console WebHID Demo](img/mx-creative-console-webhid.gif)
 
+- [Live Keypad demo](https://mario-gutierrez.github.io/mx-creative-console-webhid/examples/keypad-demo.html)
+- [Live Dialpad demo](https://mario-gutierrez.github.io/mx-creative-console-webhid/examples/dialpad-demo.html)
+- [Basic communication using both devices](https://mario-gutierrez.github.io/mx-creative-console-webhid)
+
 The repository includes:
 
 - `js/mxCreativeConsole.js`: reusable library API for app developers
