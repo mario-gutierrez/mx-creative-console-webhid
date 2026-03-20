@@ -2,6 +2,8 @@
 
 Reusable browser JavaScript library for Logitech MX Creative Console devices (Keypad + Dialpad) over WebHID.
 
+![MX Creative Console WebHID Demo](img/mx-creative-console-webhid.gif)
+
 The repository includes:
 
 - `js/mxCreativeConsole.js`: reusable library API for app developers
@@ -127,3 +129,5 @@ const client = new MXCreativeConsoleClient({ debug?: boolean });
   - Connect keypad, control brightness, and upload contextual images.
 - `examples/keypad-demo.html`
   - Visual keypad demo with connect flow, key press highlights, and per-key image updates.
+- `examples/dialpad-demo.html`
+  - Visual dialpad demo with button press overlays and live roller indicators.
