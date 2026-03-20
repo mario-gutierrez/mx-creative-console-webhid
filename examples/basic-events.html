@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console - Basic Events Example</title>
+    <style>
+        body {
+            font-family: Segoe UI, sans-serif;
+            margin: 24px;
+            background: #f4f7f9;
+            color: #1b2a33;
+        }
+
+        button {
+            padding: 8px 14px;
+            margin-right: 8px;
+        }
+
+        pre {
+            background: #101820;
+            color: #d7f1ff;
+            padding: 12px;
+            border-radius: 8px;
+            max-height: 360px;
+            overflow: auto;
+        }
+
+        .row {
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>MX Creative Console - Basic Events</h1>
+    <div class="row">
+        <button id="scanBtn">Scan / Grant Devices</button>
+    </div>
+    <div class="row">
+        <select id="deviceSelect"></select>
+        <button id="connectBtn">Connect Selected</button>
+    </div>
+    <pre id="log"></pre>
+
+    <script type="module">
+        import { MXCreativeConsoleClient } from '../js/mxCreativeConsole.js';
+
+        const logEl = document.getElementById('log');
+        const selectEl = document.getElementById('deviceSelect');
+        const client = new MXCreativeConsoleClient({ debug: true });
+
+        function log(message) {
+            const now = new Date().toLocaleTimeString();
+            logEl.textContent += `[${now}] ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        client.on('status', ({ message, isError }) => {
+            log(`${isError ? 'ERROR' : 'INFO'}: ${message}`);
+        });
+
+        client.on('devicesChanged', (devices) => {
+            selectEl.innerHTML = '';
+            devices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = String(index);
+                option.textContent = `${device.friendlyName} (${device.role})`;
+                selectEl.appendChild(option);
+            });
+            log(`Found ${devices.length} compatible devices.`);
+        });
+
+        client.on('keypadKeysChanged', ({ activeLabels }) => {
+            log(`Keypad active: ${activeLabels.join(', ') || 'none'}`);
+        });
+
+        client.on('dialpadKeysChanged', ({ activeLabels }) => {
+            log(`Dialpad active: ${activeLabels.join(', ') || 'none'}`);
+        });
+
+        client.on('rollerEvent', ({ rollerId, delta }) => {
+            log(`Roller ${rollerId} moved ${delta > 0 ? '+' : ''}${delta}`);
+        });
+
+        document.getElementById('scanBtn').addEventListener('click', async () => {
+            try {
+                await client.requestDeviceAccessAndScan();
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+            }
+        });
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            const index = Number(selectEl.value);
+            if (!Number.isFinite(index)) {
+                log('Select a device first.');
+                return;
+            }
+
+            try {
+                await client.connectAvailableDevice(index);
+                log('Connected.');
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,21 +1,20 @@
-# MX Creative Console WebHID Monitor
+# MX Creative Console WebHID Library
 
-A browser-based WebHID monitor for MX Creative devices (Dialpad and Keypad profiles).
+Reusable browser JavaScript library for Logitech MX Creative Console devices (Keypad + Dialpad) over WebHID.
 
-## What It Does
+The repository includes:
 
-1. Scans authorized Logitech devices and shows connectable targets in-app
-2. Resolves friendly device names using Feature `0x0007` when available
-3. Monitors roller movement using Feature `0x4610` when supported
-4. Monitors keypad key states using:
-   - raw report `0x13` key list parsing
-   - Feature `0x1B04` diverted key updates
-5. Shows a persistent keypad widget for 3x3 keys plus PREV/NEXT bottom keys
-6. Provides brightness controls using Feature `0x8040` (percent UI with raw range mapping)
-7. Uploads contextual display images with Feature `0x19A1`:
-   - update one key (1-9)
-   - replicate one image to all 9 keys
-   - map one image across the full keypad display
+- `js/mxCreativeConsole.js`: reusable library API for app developers
+- `js/app.js`: demo integration used by `index.html`
+- `examples/`: minimal integration examples
+
+## Capabilities
+
+- Device discovery + role classification (keypad vs dialpad)
+- Rollers : diversion mode + live rotation events
+- Special keys : merged key state updates
+- Brightness : read/set in percent
+- Contextual display upload : `single`, `all`, `full`
 
 ## Browser Support
 
@@ -25,74 +24,104 @@ A browser-based WebHID monitor for MX Creative devices (Dialpad and Keypad profi
 
 WebHID is not available in Firefox or Safari.
 
-## Feature Mapping
+## Quick Start
 
-- `0x4610` MultiRoller: capabilities, mode control, rotation events
-- `0x1B04` SpecialKeys: diversion reporting and diverted key state updates
-- `0x8040` BrightnessControl: get brightness info, read current brightness, set brightness
-- `0x19A1` ContextualDisplay: query display capabilities/info and upload key/full-screen image payloads over VLP
-- `0x0007` DeviceFriendlyName: friendly device naming in connect list
-
-## Run Locally
-
-### Option: Node `http-server`
+### 1. Serve the folder over HTTP
 
 ```bash
 npm install -g http-server
 http-server -p 8000
 ```
 
-Open: `http://localhost:8000`
+Open `http://localhost:8000`.
 
-## Usage
+### 2. Import the library
 
-1. Click `Scan / Grant Devices` and grant access in the browser picker
-2. Choose a device from `Available Devices to Connect`
-3. After connection:
-   - keypad monitor becomes active
-   - if rollers are supported, roller monitoring and diversion toggle are shown
-   - if brightness is supported, brightness controls are shown
-   - if contextual display is supported, image upload controls are shown
-4. Keypad monitoring:
-   - Press keys to update the persistent 3x3 + 2 widget
-   - `Clear Keys` resets displayed state
-5. Brightness control:
-   - Use the slider or numeric field (`0..100`)
-   - Click `Apply Brightness`
-   - Click `Refresh` to read current value from device
-6. Contextual display image upload:
-   - Select an image file (`PNG`, `JPEG`, `WEBP`, `BMP`)
-   - Pick an upload mode:
-     - `Update one key` and choose key `1..9`
-     - `Apply same image to all 9 keys`
-     - `Map image over full keypad display`
-   - Click `Upload Image`
+```html
+<script type="module">
+   import { MXCreativeConsoleClient } from './js/mxCreativeConsole.js';
 
-## Notes
+   const client = new MXCreativeConsoleClient({ debug: true });
 
-- The app now supports mixed feature availability per device.
-- Devices are connectable if they expose at least one of `0x4610`, `0x1B04`, `0x8040`, or `0x19A1`.
+   client.on('status', ({ message, isError }) => {
+      console.log(isError ? 'ERROR:' : 'INFO:', message);
+   });
 
-## Troubleshooting
+   client.on('devicesChanged', (devices) => {
+      console.log('devices', devices);
+   });
 
-### No devices in list
+   await client.requestDeviceAccessAndScan();
+</script>
+```
 
-- Re-run `Scan / Grant Devices`
-- Confirm the device is connected and authorized in browser settings
+### 3. Connect + enable events
 
-### Keypad widget does not update
+```js
+const devices = client.getAvailableDevices();
+await client.connectAvailableDevice(devices[0].index);
 
-- Verify keys are being diverted (Feature `0x1B04`) when available
-- On unsupported `0x1B04` devices, only raw report `0x13` events are used
+client.on('keypadKeysChanged', ({ activeLabels }) => {
+   console.log('keypad keys:', activeLabels);
+});
 
-### Brightness controls are hidden
+client.on('rollerEvent', ({ rollerId, delta }) => {
+   console.log('roller', rollerId, 'delta', delta);
+});
+```
 
-- The connected device does not expose Feature `0x8040`
+## Library API
 
-### Contextual display controls are hidden
+### Constructor
 
-- The connected device does not expose Feature `0x19A1`
+```js
+const client = new MXCreativeConsoleClient({ debug?: boolean });
+```
 
-### Roller monitor does not appear
+### Core methods
 
-- The connected device does not expose Feature `0x4610`
+- `requestDeviceAccessAndScan()`
+- `scanAuthorizedDevices()`
+- `getAvailableDevices()`
+- `connectAvailableDevice(index)`
+- `disconnectRole('keypad' | 'dialpad')`
+- `disconnectAll()`
+- `getConnectionState()`
+
+### Roller methods
+
+- `setRollerDiverted(boolean)`
+- `clearRollerEvents()`
+
+### Brightness methods
+
+- `refreshBrightness()`
+- `setBrightnessPercent(percent)`
+
+### Contextual display methods
+
+- `uploadContextualDisplayImage(file, { mode, keyNumber })`
+  - `mode`: `single` | `all` | `full`
+  - `keyNumber`: `1..9` (used for `single`)
+
+### Events
+
+- `status` `{ message, isError }`
+- `devicesChanged` `devices[]`
+- `roleConnected` `{ role, deviceEntry }`
+- `roleDisconnected` `{ role }`
+- `stateChanged` `connectionState`
+- `keypadKeysChanged` `{ source, activeControlIds, activeLabels }`
+- `dialpadKeysChanged` `{ source, activeControlIds, activeLabels }`
+- `rollerModeChanged` `{ mode, modeName, diverted }`
+- `rollerEvent` `{ rollerId, delta, timestamp, eventCount, snapshot }`
+- `rollerCleared` `{ eventCount }`
+- `brightnessChanged` `{ raw, percent }`
+- `imageUploadComplete` `{ mode, keyNumber? }`
+
+## Examples
+
+- `examples/basic-events.html`
+  - Scan, connect, and print key/roller events.
+- `examples/brightness-and-image.html`
+  - Connect keypad, control brightness, and upload contextual images.

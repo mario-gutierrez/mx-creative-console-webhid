@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console - Brightness and Image Example</title>
+    <style>
+        body {
+            font-family: Segoe UI, sans-serif;
+            margin: 24px;
+            background: #f4f7f9;
+            color: #1b2a33;
+        }
+
+        .row {
+            margin-bottom: 12px;
+        }
+
+        input,
+        select,
+        button {
+            padding: 8px;
+        }
+
+        #status {
+            padding: 10px;
+            border-radius: 6px;
+            background: #dceff8;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Keypad Brightness + Contextual Display</h1>
+
+    <div class="row">
+        <button id="scanBtn">Scan / Grant Devices</button>
+        <button id="connectKeypadBtn">Connect First Keypad</button>
+    </div>
+
+    <div class="row">
+        <label>Brightness: <span id="brightnessValue">-</span>%</label>
+        <input id="brightnessSlider" type="range" min="0" max="100" value="50">
+    </div>
+
+    <div class="row">
+        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/bmp">
+    </div>
+
+    <div class="row">
+        <select id="modeSelect">
+            <option value="single">Update one key</option>
+            <option value="all">Apply to all keys</option>
+            <option value="full">Full display</option>
+        </select>
+        <select id="keySelect">
+            <option value="1">Key 1</option>
+            <option value="2">Key 2</option>
+            <option value="3">Key 3</option>
+            <option value="4">Key 4</option>
+            <option value="5">Key 5</option>
+            <option value="6">Key 6</option>
+            <option value="7">Key 7</option>
+            <option value="8">Key 8</option>
+            <option value="9">Key 9</option>
+        </select>
+        <button id="uploadBtn">Upload Image</button>
+    </div>
+
+    <div id="status">Ready.</div>
+
+    <script type="module">
+        import { MXCreativeConsoleClient } from '../js/mxCreativeConsole.js';
+
+        const client = new MXCreativeConsoleClient();
+        const statusEl = document.getElementById('status');
+        const brightnessEl = document.getElementById('brightnessValue');
+        const sliderEl = document.getElementById('brightnessSlider');
+        const fileEl = document.getElementById('fileInput');
+        const modeEl = document.getElementById('modeSelect');
+        const keyEl = document.getElementById('keySelect');
+
+        client.on('status', ({ message, isError }) => {
+            statusEl.textContent = message;
+            statusEl.style.background = isError ? '#ffdada' : '#dceff8';
+        });
+
+        client.on('brightnessChanged', ({ percent }) => {
+            brightnessEl.textContent = String(percent);
+            sliderEl.value = String(percent);
+        });
+
+        document.getElementById('scanBtn').addEventListener('click', async () => {
+            try {
+                await client.requestDeviceAccessAndScan();
+            } catch (error) {
+                statusEl.textContent = error.message;
+            }
+        });
+
+        document.getElementById('connectKeypadBtn').addEventListener('click', async () => {
+            const devices = client.getAvailableDevices();
+            const keypad = devices.find((d) => d.role === 'keypad');
+            if (!keypad) {
+                statusEl.textContent = 'No keypad device available. Scan first.';
+                return;
+            }
+
+            try {
+                await client.connectAvailableDevice(keypad.index);
+                await client.refreshBrightness();
+            } catch (error) {
+                statusEl.textContent = error.message;
+            }
+        });
+
+        sliderEl.addEventListener('change', async () => {
+            try {
+                await client.setBrightnessPercent(Number(sliderEl.value));
+            } catch (error) {
+                statusEl.textContent = error.message;
+            }
+        });
+
+        document.getElementById('uploadBtn').addEventListener('click', async () => {
+            try {
+                await client.uploadContextualDisplayImage(fileEl.files?.[0], {
+                    mode: modeEl.value,
+                    keyNumber: Number(keyEl.value)
+                });
+                statusEl.textContent = 'Upload complete.';
+            } catch (error) {
+                statusEl.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+
+</html>

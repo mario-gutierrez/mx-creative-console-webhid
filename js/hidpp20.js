@@ -73,14 +73,14 @@ export class HIDPP20Device {
      */
     async sendCommand(featureIndex, functionId, params = []) {
         const requestId = this.requestId++;
-        
+
         // Build HID++ 2.0 long report (20 bytes)
         const report = new Uint8Array(20);
         report[0] = 0x11; // Report ID for HID++ 2.0 long report
         report[1] = 0xFF; // Device index (0xFF = receiver/dongle, 0x00-0x05 = device)
         report[2] = featureIndex;
         report[3] = (functionId << 4) | 0x00; // Function ID in upper nibble, software ID in lower
-        
+
         // Copy parameters
         for (let i = 0; i < Math.min(params.length, 16); i++) {
             report[4 + i] = params[i];
@@ -191,7 +191,8 @@ export async function requestLogitechDevice() {
  */
 export async function requestLogitechDevices() {
     const filters = [
-        { vendorId: 0x046d } // Logitech vendor ID
+        { vendorId: 0x046d, productId: 0xC354 }, // MX Creative Keypad
+        { vendorId: 0x046d, productId: 0xBC00 }, // MX Dialpad
     ];
 
     try {
