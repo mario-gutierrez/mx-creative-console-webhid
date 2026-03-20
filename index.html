@@ -32,42 +32,13 @@
                     <span id="keypadBadge" class="device-badge">Disconnected</span>
                 </div>
 
-                <section id="keypadDeviceInfo" class="device-section compact-section hidden">
-                    <h3>Device Information</h3>
-                    <div class="info-grid compact-grid">
-                        <div class="info-item">
-                            <span class="label">Device Name:</span>
-                            <span id="keypadDeviceName" class="value">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Product ID:</span>
-                            <span id="keypadProductId" class="value">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Vendor ID:</span>
-                            <span id="keypadVendorId" class="value">-</span>
-                        </div>
-                    </div>
-                </section>
-
                 <section id="keypadSection" class="events-section compact-section hidden">
                     <div class="events-header">
-                        <h3>Live Keypad Monitor</h3>
-                        <button id="clearKeysBtn" class="secondary-btn">Clear Keys</button>
+                        <h3>Keypad Console</h3>
+                        <button id="clearKeysBtn" class="secondary-btn">Clear</button>
                     </div>
-                    <div class="events-info compact-info">
-                        <p>Persistent keypad state for keys 1-9 plus PREV and NEXT.</p>
-                        <p class="note">Normal keys are parsed from report 0x13 and merged with diverted Feature 1B04
-                            events.</p>
-                    </div>
-                    <div class="pressed-keys-panel keypad-panel prominent-panel">
-                        <div class="pressed-keys-header">
-                            <span class="label">Pressed Keys</span>
-                            <span id="pressedKeysSummary" class="pressed-keys-summary">No keys pressed</span>
-                        </div>
-                        <div id="keypadGrid" class="keypad-grid"></div>
-                        <div id="keypadStatus" class="keypad-status">Waiting for key events...</div>
-                    </div>
+                    <textarea id="keypadConsole" class="key-console" readonly
+                        placeholder="Waiting for keypad events..."></textarea>
                 </section>
 
                 <section id="contextualDisplaySection" class="control-section compact-section hidden">
@@ -117,26 +88,10 @@
 
                 <section id="brightnessSection" class="control-section compact-section hidden">
                     <h3>Brightness Control</h3>
-                    <div class="mode-status compact-status">
-                        <span class="label">Support:</span>
-                        <span id="brightnessSupport" class="value">Checking...</span>
-                    </div>
-                    <div class="mode-status compact-status">
-                        <span class="label">Device Range:</span>
-                        <span id="brightnessRange" class="value">-</span>
-                    </div>
-                    <div class="mode-status compact-status">
-                        <span class="label">Current Brightness:</span>
-                        <span id="brightnessCurrent" class="value">-</span>
-                    </div>
                     <div class="brightness-controls compact-controls">
-                        <label class="label" for="brightnessSlider">Brightness (0-100%)</label>
+                        <label class="label" for="brightnessSlider">Brightness — <span
+                                id="brightnessCurrent">50</span>%</label>
                         <input id="brightnessSlider" type="range" min="0" max="100" step="1" value="50">
-                        <div class="brightness-input-row">
-                            <input id="brightnessPercent" type="number" min="0" max="100" step="1" value="50">
-                            <button id="setBrightnessBtn" class="secondary-btn">Apply Brightness</button>
-                            <button id="refreshBrightnessBtn" class="secondary-btn">Refresh</button>
-                        </div>
                     </div>
                 </section>
             </section>
@@ -147,32 +102,7 @@
                     <span id="dialpadBadge" class="device-badge">Disconnected</span>
                 </div>
 
-                <section id="dialpadDeviceInfo" class="device-section compact-section hidden">
-                    <h3>Device Information</h3>
-                    <div class="info-grid compact-grid">
-                        <div class="info-item">
-                            <span class="label">Device Name:</span>
-                            <span id="dialpadDeviceName" class="value">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Product ID:</span>
-                            <span id="dialpadProductId" class="value">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Vendor ID:</span>
-                            <span id="dialpadVendorId" class="value">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Number of Rollers:</span>
-                            <span id="numRollers" class="value">-</span>
-                        </div>
-                    </div>
-                </section>
 
-                <section id="rollersSection" class="rollers-section compact-section hidden">
-                    <h3>Roller Capabilities</h3>
-                    <div id="rollersList" class="rollers-list compact-rollers"></div>
-                </section>
 
                 <section id="controlSection" class="control-section compact-section hidden">
                     <h3>Roller Control</h3>
@@ -207,20 +137,11 @@
 
                 <section id="dialpadSection" class="events-section compact-section hidden">
                     <div class="events-header">
-                        <h3>Live Dialpad Monitor</h3>
-                        <button id="clearDialpadKeysBtn" class="secondary-btn">Clear Keys</button>
+                        <h3>Dialpad Console</h3>
+                        <button id="clearDialpadKeysBtn" class="secondary-btn">Clear</button>
                     </div>
-                    <div class="events-info compact-info">
-                        <p>Persistent dialpad state for 4 dial keys.</p>
-                        <p class="note">Dial keys are tracked from diverted Feature 1B04 events.</p>
-                    </div>
-                    <div class="pressed-keys-panel dialpad-panel prominent-panel">
-                        <div class="pressed-keys-header">
-                            <span class="label">Pressed Dial Keys</span>
-                            <span id="pressedDialKeySummary" class="pressed-keys-summary">No dial keys pressed</span>
-                        </div>
-                        <div id="dialpadKeysCompact" class="pressed-keys-compact dialpad-prominent"></div>
-                    </div>
+                    <textarea id="dialpadConsole" class="key-console" readonly
+                        placeholder="Waiting for dialpad events..."></textarea>
                 </section>
             </section>
 

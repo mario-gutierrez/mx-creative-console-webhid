@@ -166,25 +166,12 @@ class MultiRollerApp {
         this.keypadBadge = document.getElementById('keypadBadge');
         this.dialpadBadge = document.getElementById('dialpadBadge');
 
-        this.keypadDeviceInfo = document.getElementById('keypadDeviceInfo');
-        this.dialpadDeviceInfo = document.getElementById('dialpadDeviceInfo');
-
-        this.rollersSection = document.getElementById('rollersSection');
         this.eventsSection = document.getElementById('eventsSection');
         this.controlSection = document.getElementById('controlSection');
         this.keypadSection = document.getElementById('keypadSection');
+        this.dialpadSection = document.getElementById('dialpadSection');
         this.brightnessSection = document.getElementById('brightnessSection');
         this.contextualDisplaySection = document.getElementById('contextualDisplaySection');
-
-        this.keypadDeviceName = document.getElementById('keypadDeviceName');
-        this.keypadProductId = document.getElementById('keypadProductId');
-        this.keypadVendorId = document.getElementById('keypadVendorId');
-
-        this.dialpadDeviceName = document.getElementById('dialpadDeviceName');
-        this.dialpadProductId = document.getElementById('dialpadProductId');
-        this.dialpadVendorId = document.getElementById('dialpadVendorId');
-        this.numRollersEl = document.getElementById('numRollers');
-        this.rollersList = document.getElementById('rollersList');
 
         this.currentMode = document.getElementById('currentMode');
         this.diversionStatus = document.getElementById('diversionStatus');
@@ -192,21 +179,11 @@ class MultiRollerApp {
 
         this.lastEventState = document.getElementById('lastEventState');
 
-        this.pressedKeysSummary = document.getElementById('pressedKeysSummary');
-        this.keypadGrid = document.getElementById('keypadGrid');
-        this.keypadStatus = document.getElementById('keypadStatus');
+        this.keypadConsole = document.getElementById('keypadConsole');
+        this.dialpadConsole = document.getElementById('dialpadConsole');
 
-        this.dialpadSection = document.getElementById('dialpadSection');
-        this.pressedDialKeySummary = document.getElementById('pressedDialKeySummary');
-        this.dialpadKeysCompact = document.getElementById('dialpadKeysCompact');
-
-        this.brightnessSupport = document.getElementById('brightnessSupport');
-        this.brightnessRange = document.getElementById('brightnessRange');
         this.brightnessCurrent = document.getElementById('brightnessCurrent');
         this.brightnessSlider = document.getElementById('brightnessSlider');
-        this.brightnessPercent = document.getElementById('brightnessPercent');
-        this.setBrightnessBtn = document.getElementById('setBrightnessBtn');
-        this.refreshBrightnessBtn = document.getElementById('refreshBrightnessBtn');
 
         this.contextualDisplaySupport = document.getElementById('contextualDisplaySupport');
         this.contextualDisplayResolution = document.getElementById('contextualDisplayResolution');
@@ -223,24 +200,9 @@ class MultiRollerApp {
         document.getElementById('clearKeysBtn').addEventListener('click', () => this.clearKeyEvents());
         document.getElementById('clearDialpadKeysBtn').addEventListener('click', () => this.clearDialpadKeyEvents());
 
-        this.brightnessSlider.addEventListener('input', () => {
-            this.brightnessPercent.value = this.brightnessSlider.value;
-        });
-
-        this.brightnessPercent.addEventListener('input', () => {
-            this.syncBrightnessInputs();
-        });
-
-        this.setBrightnessBtn.addEventListener('click', () => {
+        this.brightnessSlider.addEventListener('change', () => {
             this.applyBrightness().catch((error) => {
                 console.error('Apply brightness failed:', error);
-                this.showStatus(`Error: ${error.message}`, true);
-            });
-        });
-
-        this.refreshBrightnessBtn.addEventListener('click', () => {
-            this.refreshBrightness().catch((error) => {
-                console.error('Refresh brightness failed:', error);
                 this.showStatus(`Error: ${error.message}`, true);
             });
         });
@@ -268,9 +230,6 @@ class MultiRollerApp {
         this.setContextualDisplayUiEnabled(false);
         this.onImageModeChanged();
         this.updateImageSelectionSummary();
-        this.renderKeypadWidget();
-        this.renderDialpadKeysCompact();
-        this.setKeypadStatus('Waiting for key events...');
     }
 
     showStatus(message, isError = false) {
@@ -544,15 +503,9 @@ class MultiRollerApp {
 
             if (role === 'keypad') {
                 this.keypadConnection = connection;
-                this.keypadDeviceName.textContent = deviceEntry.friendlyName;
-                this.keypadProductId.textContent = formatHex4(device.productId);
-                this.keypadVendorId.textContent = formatHex4(device.vendorId);
                 this.keypadBadge.textContent = 'Connected';
             } else {
                 this.dialpadConnection = connection;
-                this.dialpadDeviceName.textContent = deviceEntry.friendlyName;
-                this.dialpadProductId.textContent = formatHex4(device.productId);
-                this.dialpadVendorId.textContent = formatHex4(device.vendorId);
                 this.dialpadBadge.textContent = 'Connected';
             }
 
@@ -563,17 +516,14 @@ class MultiRollerApp {
                 await this.initializeSpecialKeys('dialpad', hidppDevice, connection.specialKeyHandler);
 
                 this.dialpadGroup.classList.remove('hidden');
-                this.dialpadDeviceInfo.classList.remove('hidden');
                 this.dialpadSection.classList.remove('hidden');
 
                 if (this.supportsMultiRoller && this.numRollers > 0) {
-                    this.rollersSection.classList.remove('hidden');
                     this.eventsSection.classList.remove('hidden');
                     this.controlSection.classList.remove('hidden');
                     this.diversionToggle.disabled = false;
                     await this.setAllMode(ReportingMode.Diverted);
                 } else {
-                    this.rollersSection.classList.add('hidden');
                     this.eventsSection.classList.add('hidden');
                     this.controlSection.classList.add('hidden');
                     this.diversionToggle.checked = false;
@@ -587,7 +537,6 @@ class MultiRollerApp {
                 await this.initializeBrightness(hidppDevice);
 
                 this.keypadGroup.classList.remove('hidden');
-                this.keypadDeviceInfo.classList.remove('hidden');
                 this.keypadSection.classList.remove('hidden');
                 this.contextualDisplaySection.classList.remove('hidden');
 
@@ -598,10 +547,6 @@ class MultiRollerApp {
                     this.brightnessSection.classList.add('hidden');
                 }
             }
-
-            this.renderKeypadWidget();
-            this.renderDialpadKeysCompact();
-            this.setKeypadStatus('Waiting for key events...');
 
             this.showStatus(`${role} connected successfully.`);
         } catch (error) {
@@ -623,7 +568,6 @@ class MultiRollerApp {
             await this.multiRollerFeature.initialize();
 
             this.numRollers = await this.multiRollerFeature.getCapabilities();
-            this.numRollersEl.textContent = this.numRollers;
 
             for (let i = 0; i < this.numRollers; i++) {
                 const caps = await this.multiRollerFeature.getRollerCapabilities(i);
@@ -645,7 +589,6 @@ class MultiRollerApp {
             this.multiRollerFeature = null;
             this.supportsMultiRoller = false;
             this.numRollers = 0;
-            this.numRollersEl.textContent = '0';
         }
     }
 
@@ -675,14 +618,10 @@ class MultiRollerApp {
             }
 
             this.supportsSpecialKeys = true;
-            if (role === 'keypad') {
-                this.setKeypadStatus('Keypad Feature 1B04 active. Waiting for key presses...');
-            }
         } catch (_error) {
             if (role === 'keypad') {
                 this.keypadSpecialKeysFeature = null;
                 this.keypadSpecialKeyReportingSnapshots = [];
-                this.setKeypadStatus('Keypad Feature 1B04 not available. Monitoring raw report 0x13 only.');
             } else {
                 this.dialpadSpecialKeysFeature = null;
                 this.dialpadSpecialKeyReportingSnapshots = [];
@@ -696,9 +635,6 @@ class MultiRollerApp {
         this.brightnessFeature = null;
         this.brightnessInfo = null;
         this.supportsBrightness = false;
-        this.brightnessSupport.textContent = 'Unavailable';
-        this.brightnessRange.textContent = '-';
-        this.brightnessCurrent.textContent = '-';
         this.setBrightnessUiEnabled(false);
 
         try {
@@ -706,14 +642,11 @@ class MultiRollerApp {
             await this.brightnessFeature.initialize();
             this.brightnessInfo = await this.brightnessFeature.getInfo();
             this.supportsBrightness = true;
-            this.brightnessSupport.textContent = 'Feature 0x8040 available';
-            this.brightnessRange.textContent = `${this.brightnessInfo.minBrightness} .. ${this.brightnessInfo.maxBrightness}`;
             this.setBrightnessUiEnabled(true);
         } catch (_error) {
             this.brightnessFeature = null;
             this.brightnessInfo = null;
             this.supportsBrightness = false;
-            this.brightnessSupport.textContent = 'Feature 0x8040 unavailable';
             this.setBrightnessUiEnabled(false);
         }
     }
@@ -771,7 +704,6 @@ class MultiRollerApp {
             this.brightnessInfo = null;
             this.brightnessSection.classList.add('hidden');
 
-            this.keypadDeviceInfo.classList.add('hidden');
             this.keypadSection.classList.add('hidden');
             this.contextualDisplaySection.classList.add('hidden');
             this.keypadBadge.textContent = 'Disconnected';
@@ -813,11 +745,8 @@ class MultiRollerApp {
             this.rollerPositions = [];
             this.eventCount = 0;
 
-            this.numRollersEl.textContent = '-';
             this.renderLastEventState(null, 'No event received.', 'Connect a dialpad to resume monitoring.');
 
-            this.dialpadDeviceInfo.classList.add('hidden');
-            this.rollersSection.classList.add('hidden');
             this.eventsSection.classList.add('hidden');
             this.controlSection.classList.add('hidden');
             this.dialpadSection.classList.add('hidden');
@@ -829,27 +758,10 @@ class MultiRollerApp {
             this.currentMode.textContent = '-';
             this.dialpadGroup.classList.add('hidden');
         }
-
-        this.renderKeypadWidget();
-        this.renderDialpadKeysCompact();
     }
 
     setBrightnessUiEnabled(enabled) {
         this.brightnessSlider.disabled = !enabled;
-        this.brightnessPercent.disabled = !enabled;
-        this.setBrightnessBtn.disabled = !enabled;
-        this.refreshBrightnessBtn.disabled = !enabled;
-    }
-
-    syncBrightnessInputs() {
-        let percent = Number(this.brightnessPercent.value);
-        if (!Number.isFinite(percent)) {
-            percent = 0;
-        }
-
-        percent = Math.max(0, Math.min(100, Math.round(percent)));
-        this.brightnessPercent.value = String(percent);
-        this.brightnessSlider.value = String(percent);
     }
 
     async applyBrightness() {
@@ -857,19 +769,15 @@ class MultiRollerApp {
             return;
         }
 
-        this.syncBrightnessInputs();
-
-        const requestedPercent = Number(this.brightnessPercent.value);
+        const requestedPercent = Math.round(Math.max(0, Math.min(100, Number(this.brightnessSlider.value))));
         const raw = percentToBrightness(
             requestedPercent,
             this.brightnessInfo.minBrightness,
             this.brightnessInfo.maxBrightness
         );
 
-        this.showStatus(`Setting brightness to ${requestedPercent}%...`);
         await this.brightnessFeature.setBrightness(raw);
         await this.refreshBrightness();
-        this.showStatus(`Brightness set to ${requestedPercent}%`);
     }
 
     async refreshBrightness() {
@@ -884,9 +792,8 @@ class MultiRollerApp {
             this.brightnessInfo.maxBrightness
         );
 
-        this.brightnessCurrent.textContent = `${percent}% (raw=${raw})`;
+        this.brightnessCurrent.textContent = String(percent);
         this.brightnessSlider.value = String(percent);
-        this.brightnessPercent.value = String(percent);
     }
 
     async initializeContextualDisplay(hidppDevice) {
@@ -1234,7 +1141,6 @@ class MultiRollerApp {
             });
 
             this.renderKeypadWidget();
-            this.setKeypadStatus(statusText);
             return;
         }
 
@@ -1266,66 +1172,60 @@ class MultiRollerApp {
         this.renderDialpadKeysCompact();
     }
 
-    setKeypadStatus(text) {
-        this.keypadStatus.textContent = text;
-    }
-
     renderKeypadWidget() {
-        this.keypadGrid.innerHTML = '';
+        const activeKeys = KEYPAD_WIDGET_KEYS
+            .filter((key) => this.keypadPressedSpecialKeys.has(key.controlId))
+            .map((key) => key.label);
 
-        KEYPAD_WIDGET_KEYS.forEach((key) => {
-            const isActive = this.keypadPressedSpecialKeys.has(key.controlId);
-            const keyEl = document.createElement('div');
-            keyEl.className = `keypad-key ${isActive ? 'active' : ''} ${key.wide ? 'wide' : ''}`.trim();
-            keyEl.title = `${key.label} (${formatHex4(key.controlId)})`;
-            keyEl.innerHTML = `
-                <span class="keypad-key-label">${key.label}</span>
-                <span class="keypad-key-id">${formatHex4(key.controlId)}</span>
-            `;
-            this.keypadGrid.appendChild(keyEl);
-        });
+        const stateStr = activeKeys.join(',');
+        if (stateStr === this._lastKeypadConsoleState) {
+            return;
+        }
+        this._lastKeypadConsoleState = stateStr;
 
-        const activeCount = this.keypadPressedSpecialKeys.size;
-        this.pressedKeysSummary.textContent = activeCount === 0
-            ? 'No keys pressed'
-            : `${activeCount} key${activeCount === 1 ? '' : 's'} pressed`;
+        const timestamp = new Date().toLocaleTimeString();
+        const line = activeKeys.length === 0
+            ? `[${timestamp}] — released all`
+            : `[${timestamp}] Active: ${activeKeys.join(', ')}`;
+
+        this.keypadConsole.value += line + '\n';
+        this.keypadConsole.scrollTop = this.keypadConsole.scrollHeight;
     }
 
     clearKeyEvents() {
         this.keypadNormalPressedKeys.clear();
         this.keypadDivertedPressedKeys.clear();
         this.keypadPressedSpecialKeys.clear();
-        this.renderKeypadWidget();
-        this.setKeypadStatus('Cleared. Waiting for key events...');
+        this._lastKeypadConsoleState = null;
+        this.keypadConsole.value = '';
     }
 
     clearDialpadKeyEvents() {
         this.dialpadNormalPressedKeys.clear();
         this.dialpadDivertedPressedKeys.clear();
         this.dialpadPressedKeys.clear();
-        this.renderDialpadKeysCompact();
+        this._lastDialpadConsoleState = null;
+        this.dialpadConsole.value = '';
     }
 
     renderDialpadKeysCompact() {
-        const activeCount = this.dialpadPressedKeys.size;
+        const activeKeys = DIALPAD_WIDGET_KEYS
+            .filter((key) => this.dialpadPressedKeys.has(key.controlId) || this.dialpadPressedKeys.has(key.controlId & 0xff))
+            .map((key) => key.label);
 
-        this.pressedDialKeySummary.textContent = activeCount === 0
-            ? 'No dial keys pressed'
-            : `${activeCount} dial key${activeCount === 1 ? '' : 's'} pressed`;
+        const stateStr = activeKeys.join(',');
+        if (stateStr === this._lastDialpadConsoleState) {
+            return;
+        }
+        this._lastDialpadConsoleState = stateStr;
 
-        this.dialpadKeysCompact.innerHTML = '';
+        const timestamp = new Date().toLocaleTimeString();
+        const line = activeKeys.length === 0
+            ? `[${timestamp}] — released all`
+            : `[${timestamp}] Active: ${activeKeys.join(', ')}`;
 
-        DIALPAD_WIDGET_KEYS.forEach((key) => {
-            const item = document.createElement('div');
-            const isActive = this.dialpadPressedKeys.has(key.controlId) || this.dialpadPressedKeys.has(key.controlId & 0xff);
-            item.className = `pressed-key-chip ${isActive ? 'active' : ''}`;
-            item.title = `${key.label} (${formatHex4(key.controlId)})`;
-            item.innerHTML = `
-                <span class="pressed-key-dot"></span>
-                <span class="pressed-key-label">${key.label}</span>
-            `;
-            this.dialpadKeysCompact.appendChild(item);
-        });
+        this.dialpadConsole.value += line + '\n';
+        this.dialpadConsole.scrollTop = this.dialpadConsole.scrollHeight;
     }
 
     resetRollerPositions() {
@@ -1421,62 +1321,11 @@ class MultiRollerApp {
     }
 
     displayRollerCapabilities() {
-        this.rollersList.innerHTML = '';
-
-        this.rollerCapabilities.forEach((roller) => {
-            const rollerCard = document.createElement('div');
-            rollerCard.className = 'roller-card';
-            rollerCard.innerHTML = `
-                <h3>Roller ${roller.rollerId}</h3>
-                <div class="roller-details">
-                    <div class="detail-item">
-                        <span class="label">Increments per rotation:</span>
-                        <span class="value">${roller.incrementsPerRotation}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Increments per ratchet:</span>
-                        <span class="value">${roller.incrementsPerRatchet} ${roller.isRatcheted() ? '(Ratcheted)' : '(Smooth)'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Lightbar ID:</span>
-                        <span class="value">${roller.lightbarId} ${roller.hasLightbar() ? '(Has lightbar)' : '(No lightbar)'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Timestamp support:</span>
-                        <span class="value">${roller.supportsTimestamp() ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Current mode:</span>
-                        <span class="value mode-value" data-roller-id="${roller.rollerId}">Checking...</span>
-                    </div>
-                </div>
-            `;
-            this.rollersList.appendChild(rollerCard);
-            this.updateRollerMode(roller.rollerId);
-        });
+        // Roller capabilities section removed from UI.
     }
 
     async updateRollerMode(rollerId) {
-        if (!this.multiRollerFeature) {
-            return;
-        }
-
-        try {
-            const mode = await this.multiRollerFeature.getMode(rollerId);
-            const modeStr = Feature4610MultiRoller.getModeString(mode);
-            const modeEl = this.rollersList.querySelector(`.mode-value[data-roller-id="${rollerId}"]`);
-            if (modeEl) {
-                modeEl.textContent = modeStr;
-                modeEl.className = `value mode-value ${mode === ReportingMode.Diverted ? 'mode-diverted' : 'mode-native'}`;
-            }
-        } catch (error) {
-            console.error(`Error getting mode for roller ${rollerId}:`, error);
-            const modeEl = this.rollersList.querySelector(`.mode-value[data-roller-id="${rollerId}"]`);
-            if (modeEl) {
-                modeEl.textContent = 'Unavailable';
-                modeEl.className = 'value mode-value';
-            }
-        }
+        // Roller mode display removed from UI.
     }
 
     async refreshAllRollerModes() {
