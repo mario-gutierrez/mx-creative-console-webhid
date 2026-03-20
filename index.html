@@ -12,7 +12,6 @@
     <div class="container">
         <header>
             <h1>🎛️ MX Creative Console</h1>
-            <p class="subtitle">WebHID Monitoring Tool</p>
         </header>
 
         <main>
@@ -43,19 +42,6 @@
 
                 <section id="contextualDisplaySection" class="control-section compact-section hidden">
                     <h3>Contextual Display Upload</h3>
-                    <div class="mode-status compact-status">
-                        <span class="label">Support:</span>
-                        <span id="contextualDisplaySupport" class="value">Checking...</span>
-                    </div>
-                    <div class="mode-status compact-status">
-                        <span class="label">Display Resolution:</span>
-                        <span id="contextualDisplayResolution" class="value">-</span>
-                    </div>
-                    <div class="mode-status compact-status">
-                        <span class="label">Button Count:</span>
-                        <span id="contextualDisplayButtons" class="value">-</span>
-                    </div>
-
                     <div class="contextual-display-controls compact-controls">
                         <label class="label" for="contextualDisplayFile">Image File</label>
                         <input id="contextualDisplayFile" type="file"
@@ -102,37 +88,12 @@
                     <span id="dialpadBadge" class="device-badge">Disconnected</span>
                 </div>
 
-
-
-                <section id="controlSection" class="control-section compact-section hidden">
-                    <h3>Roller Control</h3>
-                    <div class="switch-row compact-switch-row">
-                        <span class="label">Divert Rollers</span>
-                        <label class="toggle-switch" for="diversionToggle">
-                            <input id="diversionToggle" type="checkbox">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="mode-status compact-status">
-                        <span class="label">Current Mode:</span>
-                        <span id="currentMode" class="value">-</span>
-                    </div>
-                    <div class="mode-status compact-status">
-                        <span class="label">Diversion Status:</span>
-                        <span id="diversionStatus" class="value">-</span>
-                    </div>
-                </section>
-
                 <section id="eventsSection" class="events-section compact-section roller-monitor-prominent hidden">
                     <div class="events-header">
                         <h3>Live Roller Monitor</h3>
                         <button id="clearEventsBtn" class="secondary-btn">Clear Events</button>
                     </div>
                     <div id="lastEventState" class="last-event-state"></div>
-                    <div class="events-info compact-info">
-                        <p>Rotate the rollers on your device to update the live monitor above.</p>
-                        <p class="note">Note: events only appear when rollers are in Diverted mode.</p>
-                    </div>
                 </section>
 
                 <section id="dialpadSection" class="events-section compact-section hidden">
@@ -143,14 +104,21 @@
                     <textarea id="dialpadConsole" class="key-console" readonly
                         placeholder="Waiting for dialpad events..."></textarea>
                 </section>
+
+                <section id="controlSection" class="control-section compact-section hidden">
+                    <h3>Roller Control</h3>
+                    <div class="switch-row compact-switch-row">
+                        <span class="label">Divert Rollers</span>
+                        <label class="toggle-switch" for="diversionToggle">
+                            <input id="diversionToggle" type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </section>
+
             </section>
 
         </main>
-
-        <footer>
-            <p>WebHID Monitoring Tool for MX Creative devices</p>
-            <p class="note">Uses HID++ features 0x4610, 0x1B04, 0x8040, 0x19A1, and 0x0007 when available.</p>
-        </footer>
     </div>
 
     <script type="module" src="js/app.js"></script>

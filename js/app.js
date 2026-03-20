@@ -44,8 +44,6 @@ class MonitorDemoApp {
         this.controlSection = document.getElementById('controlSection');
         this.lastEventState = document.getElementById('lastEventState');
         this.diversionToggle = document.getElementById('diversionToggle');
-        this.currentMode = document.getElementById('currentMode');
-        this.diversionStatus = document.getElementById('diversionStatus');
 
         this.keypadConsole = document.getElementById('keypadConsole');
         this.dialpadConsole = document.getElementById('dialpadConsole');
@@ -53,9 +51,6 @@ class MonitorDemoApp {
         this.brightnessSlider = document.getElementById('brightnessSlider');
         this.brightnessCurrent = document.getElementById('brightnessCurrent');
 
-        this.contextualDisplaySupport = document.getElementById('contextualDisplaySupport');
-        this.contextualDisplayResolution = document.getElementById('contextualDisplayResolution');
-        this.contextualDisplayButtons = document.getElementById('contextualDisplayButtons');
         this.contextualDisplayFile = document.getElementById('contextualDisplayFile');
         this.contextualDisplayFileName = document.getElementById('contextualDisplayFileName');
         this.contextualDisplayMode = document.getElementById('contextualDisplayMode');
@@ -169,8 +164,6 @@ class MonitorDemoApp {
         });
 
         this.client.on('rollerModeChanged', ({ modeName, diverted }) => {
-            this.currentMode.textContent = modeName;
-            this.diversionStatus.textContent = diverted ? 'On (Diverted)' : 'Off (Native)';
             this.diversionToggle.checked = diverted;
 
             if (diverted) {
@@ -321,20 +314,6 @@ class MonitorDemoApp {
         this.controlSection.classList.toggle('hidden', !state.dialpadConnected || !state.features.dialpad.multiRoller);
 
         this.diversionToggle.disabled = !state.features.dialpad.multiRoller;
-        if (!state.features.dialpad.multiRoller) {
-            this.currentMode.textContent = 'Unavailable';
-            this.diversionStatus.textContent = 'Unavailable';
-        }
-
-        if (state.features.keypad.contextualDisplay && state.contextualDisplayCaps && state.contextualDisplayInfo) {
-            this.contextualDisplaySupport.textContent = `Feature 0x19A1 available (max image size ${state.contextualDisplayCaps.maxImageSize} bytes)`;
-            this.contextualDisplayResolution.textContent = `${state.contextualDisplayInfo.resHorizontal} x ${state.contextualDisplayInfo.resVertical}`;
-            this.contextualDisplayButtons.textContent = String(state.contextualDisplayInfo.buttons.length);
-        } else {
-            this.contextualDisplaySupport.textContent = 'Feature 0x19A1 unavailable';
-            this.contextualDisplayResolution.textContent = '-';
-            this.contextualDisplayButtons.textContent = '-';
-        }
 
         this.setContextualDisplayUiEnabled(state.features.keypad.contextualDisplay);
         this.brightnessSlider.disabled = !state.features.keypad.brightness;
