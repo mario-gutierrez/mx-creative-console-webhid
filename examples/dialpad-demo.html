@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console - Dialpad Demo</title>
+    <style>
+        body {
+            font-family: Segoe UI, sans-serif;
+            background: radial-gradient(circle at 20% 20%, #333 0%, #202020 45%, #131313 100%);
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin: 0;
+            letter-spacing: 0.04em;
+        }
+
+        button {
+            padding: 8px 14px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: 1px solid #535353;
+            background: #2a2a2a;
+            color: #f0f0f0;
+        }
+
+        .app-shell {
+            width: min(92vw, 420px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .device-wrap {
+            position: relative;
+            width: min(92vw, 400px);
+            aspect-ratio: 1;
+            user-select: none;
+        }
+
+        .device-bg {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            border-radius: 24px;
+            filter: drop-shadow(0 16px 28px rgba(0, 0, 0, 0.5));
+        }
+
+        .dial-hotspot {
+            position: absolute;
+            border: 2px solid transparent;
+            border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.1s ease, box-shadow 0.1s ease, transform 0.08s ease;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dial-hotspot:hover {
+            border-color: rgba(160, 220, 255, 0.55);
+        }
+
+        .dial-hotspot.pressed {
+            border-color: #5ffb67;
+            box-shadow: 0 0 12px rgba(95, 251, 103, 0.65);
+            transform: scale(0.99);
+        }
+
+        .roller-indicator {
+            position: absolute;
+            border: 2px solid transparent;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.1s ease, box-shadow 0.1s ease;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .roller-indicator.active {
+            border-color: rgba(95, 251, 103, 0.65);
+            box-shadow: 0 0 10px rgba(95, 251, 103, 0.4);
+            background: rgba(95, 251, 103, 0.1);
+        }
+
+        .roller-progress {
+            font-size: 10px;
+            color: rgba(230, 230, 230, 0.8);
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        #log {
+            font-family: Consolas, monospace;
+            color: #d2d2d2;
+            text-align: center;
+            min-height: 24px;
+            background: rgba(0, 0, 0, 0.24);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 10px 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 560px) {
+            h1 {
+                font-size: 1.4rem;
+            }
+
+            button {
+                width: 100%;
+                max-width: 320px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>MX Creative Console - Dialpad</h1>
+    <br>
+    <div class="app-shell">
+
+        <button id="connectBtn">Connect Device</button>
+
+        <div class="device-wrap" id="deviceWrap">
+            <img class="device-bg" src="../img/mx-dialpad.png" alt="MX dialpad">
+            <!-- Dial buttons: D1, D2, D3, D4 -->
+            <div class="dial-hotspot" id="dial-d1" title="D1"></div>
+            <div class="dial-hotspot" id="dial-d2" title="D2"></div>
+            <div class="dial-hotspot" id="dial-d3" title="D3"></div>
+            <div class="dial-hotspot" id="dial-d4" title="D4"></div>
+            <!-- Roller live indicators -->
+            <div class="roller-indicator" id="roller-0"></div>
+            <div class="roller-indicator" id="roller-1"></div>
+        </div>
+
+        <div id="log">Waiting for connection...</div>
+    </div>
+
+    <script type="module">
+        import { MXCreativeConsoleClient } from '../js/mxCreativeConsole.js';
+
+        const client = new MXCreativeConsoleClient();
+        const connectBtn = document.getElementById('connectBtn');
+        const deviceWrap = document.getElementById('deviceWrap');
+        const logEl = document.getElementById('log');
+
+        // Measured from mx-dialpad.png (assumes square aspect ratio, 1000x1000 reference)
+        // Positions estimated from mx-dialpad-labels.png
+        const layout = {
+            // D buttons (circular buttons at corners)
+            dialButtons: [
+                { id: 'd1', controlId: 0x0053, left: 0.07, top: 0.07, radius: 0.08 },  // D1: top-left
+                { id: 'd2', controlId: 0x0056, left: 0.25, top: 0.07, radius: 0.08 },  // D2: top-center
+                { id: 'd3', controlId: 0x0059, left: 0.07, top: 0.75, radius: 0.08 },  // D3: bottom-left
+                { id: 'd4', controlId: 0x005a, left: 0.75, top: 0.75, radius: 0.08 }   // D4: bottom-right
+            ],
+            // Roller live indicators
+            rollers: [
+                { id: 0, left: 0.67, top: 0.08, radius: 0.08 },  // Roller 0: top-right (display)
+                { id: 1, left: 0.27, top: 0.34, radius: 0.22 }   // Roller 1: center (large dial)
+            ]
+        };
+
+        const dialButtonKeyMap = new Map([
+            [0x0053, 'D1'],
+            [0x0056, 'D2'],
+            [0x0059, 'D3'],
+            [0x005a, 'D4']
+        ]);
+
+        let connected = false;
+        let previousPressed = new Set();
+        let rollerStates = new Map();
+
+        positionDialButtons();
+        positionRollerIndicators();
+
+        function positionDialButtons() {
+            for (const button of layout.dialButtons) {
+                const el = document.getElementById(`dial-${button.id}`);
+                if (!el) {
+                    continue;
+                }
+
+                el.style.left = `${button.left * 100}%`;
+                el.style.top = `${button.top * 100}%`;
+                el.style.width = `${button.radius * 2 * 100}%`;
+                el.style.height = `${button.radius * 2 * 100}%`;
+            }
+        }
+
+        function positionRollerIndicators() {
+            for (const roller of layout.rollers) {
+                const el = document.getElementById(`roller-${roller.id}`);
+                if (!el) {
+                    continue;
+                }
+
+                el.style.left = `${roller.left * 100}%`;
+                el.style.top = `${roller.top * 100}%`;
+                el.style.width = `${roller.radius * 2 * 100}%`;
+                el.style.height = `${roller.radius * 2 * 100}%`;
+
+                el.textContent = '';
+                const progress = document.createElement('div');
+                progress.className = 'roller-progress';
+                progress.textContent = `Roller ${roller.id}`;
+                el.appendChild(progress);
+
+                rollerStates.set(roller.id, { progress: 0, active: false });
+            }
+        }
+
+        function setLog(message) {
+            logEl.textContent = message;
+        }
+
+        function updateDialButtonVisuals(currentPressed) {
+            for (const button of layout.dialButtons) {
+                const el = document.getElementById(`dial-${button.id}`);
+                if (!el) continue;
+
+                const isPressed = currentPressed.has(button.controlId);
+                el.classList.toggle('pressed', isPressed);
+            }
+        }
+
+        function updateRollerIndicators(snapshot) {
+            if (!snapshot || snapshot.length === 0) return;
+
+            for (const roller of snapshot) {
+                const el = document.getElementById(`roller-${roller.rollerId}`);
+                if (!el) continue;
+
+                el.classList.toggle('active', roller.isChanged);
+
+                const progressEl = el.querySelector('.roller-progress');
+                if (progressEl) {
+                    const percent = Math.round(roller.progress * 100);
+                    progressEl.textContent = `R${roller.rollerId}\n${percent}%`;
+                }
+
+                rollerStates.set(roller.rollerId, {
+                    progress: roller.progress,
+                    active: roller.isChanged
+                });
+            }
+        }
+
+        client.on('status', ({ message, isError }) => {
+            setLog(isError ? `Error: ${message}` : message);
+        });
+
+        client.on('dialpadKeysChanged', ({ activeControlIds }) => {
+            const currentPressed = new Set(activeControlIds);
+
+            for (const controlId of currentPressed) {
+                if (!previousPressed.has(controlId)) {
+                    const label = dialButtonKeyMap.get(controlId) || `0x${controlId.toString(16)}`;
+                    setLog(`Button Down: ${label}`);
+                }
+            }
+
+            for (const controlId of previousPressed) {
+                if (!currentPressed.has(controlId)) {
+                    const label = dialButtonKeyMap.get(controlId) || `0x${controlId.toString(16)}`;
+                    setLog(`Button Up: ${label}`);
+                }
+            }
+
+            previousPressed = currentPressed;
+            updateDialButtonVisuals(currentPressed);
+        });
+
+        client.on('rollerEvent', ({ rollerId, delta, snapshot }) => {
+            const deltaPrefix = delta > 0 ? '+' : '';
+            setLog(`Roller ${rollerId} ${deltaPrefix}${delta}`);
+            updateRollerIndicators(snapshot);
+        });
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                await client.requestDeviceAccessAndScan();
+                const devices = client.getAvailableDevices();
+                const dialpad = devices.find((device) => device.role === 'dialpad');
+
+                if (!dialpad) {
+                    throw new Error('No dialpad device found after scan.');
+                }
+
+                await client.connectAvailableDevice(dialpad.index);
+
+                // Auto-enable roller diversion to see live events
+                try {
+                    await client.setRollerDiverted(true);
+                } catch (_error) {
+                    // Continue even if diversion fails
+                }
+
+                connected = true;
+                connectBtn.disabled = true;
+                setLog(`Connected: ${dialpad.friendlyName}`);
+            } catch (error) {
+                setLog(`Connection error: ${error.message}`);
+            }
+        });
+
+        window.addEventListener('beforeunload', async () => {
+            if (connected) {
+                try {
+                    await client.disconnectAll();
+                } catch (_error) {
+                    // Ignore errors during unload
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
