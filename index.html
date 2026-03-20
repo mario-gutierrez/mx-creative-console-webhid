@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console Monitor - WebHID</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🎛️ MX Creative Console</h1>
+        </header>
+
+        <main>
+            <section class="connection-section">
+                <button id="connectBtn" class="primary-btn">Scan / Grant Devices</button>
+                <div id="connectionStatus" class="status-message"></div>
+            </section>
+
+            <section id="availableDevicesSection" class="device-section">
+                <h2>Available Devices to Connect</h2>
+                <div id="availableDevicesList" class="available-devices-list"></div>
+            </section>
+
+            <section id="keypadGroup" class="device-group hidden">
+                <div class="group-heading">
+                    <h2>Keypad Device</h2>
+                    <span id="keypadBadge" class="device-badge">Disconnected</span>
+                </div>
+
+                <section id="keypadSection" class="events-section compact-section hidden">
+                    <div class="events-header">
+                        <h3>Keypad Console</h3>
+                        <button id="clearKeysBtn" class="secondary-btn">Clear</button>
+                    </div>
+                    <textarea id="keypadConsole" class="key-console" readonly
+                        placeholder="Waiting for keypad events..."></textarea>
+                </section>
+
+                <section id="contextualDisplaySection" class="control-section compact-section hidden">
+                    <h3>Contextual Display Upload</h3>
+                    <div class="contextual-display-controls compact-controls">
+                        <label class="label" for="contextualDisplayFile">Image File</label>
+                        <input id="contextualDisplayFile" type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp,image/bmp">
+                        <div id="contextualDisplayFileName" class="contextual-image-meta">No image selected</div>
+
+                        <label class="label" for="contextualDisplayMode">Update Mode</label>
+                        <select id="contextualDisplayMode">
+                            <option value="single">Update one key</option>
+                            <option value="all">Apply same image to all 9 keys</option>
+                            <option value="full">Map image over full keypad display</option>
+                        </select>
+
+                        <label class="label" for="contextualDisplayKey">Target Key (1-9)</label>
+                        <select id="contextualDisplayKey">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                        </select>
+
+                        <button id="uploadContextualImageBtn" class="secondary-btn">Upload Image</button>
+                    </div>
+                </section>
+
+                <section id="brightnessSection" class="control-section compact-section hidden">
+                    <h3>Brightness Control</h3>
+                    <div class="brightness-controls compact-controls">
+                        <label class="label" for="brightnessSlider">Brightness — <span
+                                id="brightnessCurrent">50</span>%</label>
+                        <input id="brightnessSlider" type="range" min="0" max="100" step="1" value="50">
+                    </div>
+                </section>
+            </section>
+
+            <section id="dialpadGroup" class="device-group hidden">
+                <div class="group-heading">
+                    <h2>Dialpad Device</h2>
+                    <span id="dialpadBadge" class="device-badge">Disconnected</span>
+                </div>
+
+                <section id="eventsSection" class="events-section compact-section roller-monitor-prominent hidden">
+                    <div class="events-header">
+                        <h3>Live Roller Monitor</h3>
+                        <button id="clearEventsBtn" class="secondary-btn">Clear Events</button>
+                    </div>
+                    <div id="lastEventState" class="last-event-state"></div>
+                </section>
+
+                <section id="dialpadSection" class="events-section compact-section hidden">
+                    <div class="events-header">
+                        <h3>Dialpad Console</h3>
+                        <button id="clearDialpadKeysBtn" class="secondary-btn">Clear</button>
+                    </div>
+                    <textarea id="dialpadConsole" class="key-console" readonly
+                        placeholder="Waiting for dialpad events..."></textarea>
+                </section>
+
+                <section id="controlSection" class="control-section compact-section hidden">
+                    <h3>Roller Control</h3>
+                    <div class="switch-row compact-switch-row">
+                        <span class="label">Divert Rollers</span>
+                        <label class="toggle-switch" for="diversionToggle">
+                            <input id="diversionToggle" type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </section>
+
+            </section>
+
+        </main>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

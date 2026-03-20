@@ -1,90 +1,137 @@
-# MX Creative Console WebHID
+# MX Creative Console WebHID Library
 
-A lightweight, zero-dependency WebHID library for communicating with the **Logitech MX Creative Console** (Keypad) directly from the browser.
+Reusable browser JavaScript library for Logitech MX Creative Console devices (Keypad + Dialpad) over WebHID.
 
-This project allows you to capture key events and render images to the device's LCD buttons without requiring official drivers or background software.
+![MX Creative Console WebHID Demo](img/mx-creative-console-webhid.gif)
 
-You can experience the library in action directly in your browser via the hosted GitHub Pages demos:
+- [Live Keypad demo](https://mario-gutierrez.github.io/mx-creative-console-webhid/examples/keypad-demo.html)
+- [Live Dialpad demo](https://mario-gutierrez.github.io/mx-creative-console-webhid/examples/dialpad-demo.html)
+- [Basic communication using both devices](https://mario-gutierrez.github.io/mx-creative-console-webhid)
 
-- [Main demo](https://mario-gutierrez.github.io/mx-creative-console-webhid/app/)
-- [Image loader](https://mario-gutierrez.github.io/mx-creative-console-webhid/app/mosaic.html)
+The repository includes:
 
-## 🚀 Features
+- `js/mxCreativeConsole.js`: reusable library API for app developers
+- `js/app.js`: demo integration used by `index.html`
+- `examples/`: minimal integration examples
 
-- **Plug & Play:** Uses the browser's native WebHID API.
-- **Input Handling:** Event-based listeners for `keydown` and `keyup` on all 9 grid buttons and the 2 paging buttons.
-- **LCD Control:** Helper methods to render images (JPEG Blobs) to the 9 programmable LCD keys.
-- **Image Slicing:** Includes a "Mosaic" demo that intelligently crops and slices a single image to display across the entire 3x3 keypad grid.
+## Capabilities
 
-## 📦 File Structure
+- Device discovery + role classification (keypad vs dialpad)
+- Rollers : diversion mode + live rotation events
+- Special keys : merged key state updates
+- Brightness : read/set in percent
+- Contextual display upload : `single`, `all`, `full`
 
-- `app/mx-creative-console.js`: The core library handling HID communication and packet generation.
-- `app/index.html`: Basic demo showing connection handling and random color generation.
-- `app/mosaic.html`: Advanced demo that allows users to upload an image and slice it across the keypad.
+## Browser Support
 
-## 💻 Usage
+- Chrome 89+
+- Edge 89+
+- Opera 75+
 
-To use the library, import the `MXCreativeConsole` class. Note that because this uses WebHID, it requires a secure context (HTTPS or localhost) and a Chromium-based browser (Chrome, Edge).
+WebHID is not available in Firefox or Safari.
 
-### Basic Implementation
+## Quick Start
 
-```javascript
-import { MXCreativeConsole } from './mx-creative-console.js';
-
-const mx = new MXCreativeConsole();
-
-// 1. Listen for connection events
-mx.addEventListener('connected', (e) => {
-    console.log(`Device connected: ${e.detail.device.productName}`);
-});
-
-// 2. Handle Key Presses (Keys 0-8 are Grid, 9-10 are Page buttons)
-mx.addEventListener('keydown', (e) => {
-    console.log(`Key Pressed: ${e.detail.key}`);
-});
-
-mx.addEventListener('keyup', (e) => {
-    console.log(`Key Released: ${e.detail.key}`);
-});
-
-// 3. Initiate Connection (Must be triggered by user gesture, e.g., button click)
-document.getElementById('connect-btn').addEventListener('click', async () => {
-    try {
-        await mx.connect();
-    } catch (err) {
-        console.error("Connection failed", err);
-    }
-});
-
-// 4. Update an LCD Button Image
-// The library expects a JPEG Blob or Uint8Array
-async function updateButtonToRed(keyIndex) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 118; // Native LCD size
-    canvas.height = 118;
-    const ctx = canvas.getContext('2d');
-    
-    // Draw something
-    ctx.fillStyle = 'red';
-    ctx.fillRect(0, 0, 118, 118);
-    
-    // Convert to Blob and send to device
-    canvas.toBlob((blob) => {
-        mx.setKeyImage(keyIndex, blob);
-    }, 'image/jpeg', 0.9);
-}
-```
-
-## 🏃 Running the Demos Locally
-
-Since this project uses ES modules, you cannot run it by simply opening the HTML files in a browser. You must serve them via a local web server.
+### 1. Serve the folder over HTTP
 
 ```bash
-# Example using Python
-python3 -m http.server 8000
-
-# OR using Node/npx
-npx serve .
+npm install -g http-server
+http-server -p 8000
 ```
 
-Open `http://localhost:8000/app/index.html` in Chrome or Edge.
+Open `http://localhost:8000`.
+
+### 2. Import the library
+
+```html
+<script type="module">
+   import { MXCreativeConsoleClient } from './js/mxCreativeConsole.js';
+
+   const client = new MXCreativeConsoleClient({ debug: true });
+
+   client.on('status', ({ message, isError }) => {
+      console.log(isError ? 'ERROR:' : 'INFO:', message);
+   });
+
+   client.on('devicesChanged', (devices) => {
+      console.log('devices', devices);
+   });
+
+   await client.requestDeviceAccessAndScan();
+</script>
+```
+
+### 3. Connect + enable events
+
+```js
+const devices = client.getAvailableDevices();
+await client.connectAvailableDevice(devices[0].index);
+
+client.on('keypadKeysChanged', ({ activeLabels }) => {
+   console.log('keypad keys:', activeLabels);
+});
+
+client.on('rollerEvent', ({ rollerId, delta }) => {
+   console.log('roller', rollerId, 'delta', delta);
+});
+```
+
+## Library API
+
+### Constructor
+
+```js
+const client = new MXCreativeConsoleClient({ debug?: boolean });
+```
+
+### Core methods
+
+- `requestDeviceAccessAndScan()`
+- `scanAuthorizedDevices()`
+- `getAvailableDevices()`
+- `connectAvailableDevice(index)`
+- `disconnectRole('keypad' | 'dialpad')`
+- `disconnectAll()`
+- `getConnectionState()`
+
+### Roller methods
+
+- `setRollerDiverted(boolean)`
+- `clearRollerEvents()`
+
+### Brightness methods
+
+- `refreshBrightness()`
+- `setBrightnessPercent(percent)`
+
+### Contextual display methods
+
+- `uploadContextualDisplayImage(file, { mode, keyNumber })`
+  - `mode`: `single` | `all` | `full`
+  - `keyNumber`: `1..9` (used for `single`)
+
+### Events
+
+- `status` `{ message, isError }`
+- `devicesChanged` `devices[]`
+- `roleConnected` `{ role, deviceEntry }`
+- `roleDisconnected` `{ role }`
+- `stateChanged` `connectionState`
+- `keypadKeysChanged` `{ source, activeControlIds, activeLabels }`
+- `dialpadKeysChanged` `{ source, activeControlIds, activeLabels }`
+- `rollerModeChanged` `{ mode, modeName, diverted }`
+- `rollerEvent` `{ rollerId, delta, timestamp, eventCount, snapshot }`
+- `rollerCleared` `{ eventCount }`
+- `brightnessChanged` `{ raw, percent }`
+- `imageUploadComplete` `{ mode, keyNumber? }`
+
+## Examples
+
+- `examples/basic-events.html`
+  - Scan, connect, and print key/roller events.
+- `examples/brightness-and-image.html`
+  - Connect keypad, control brightness, and upload contextual images.
+- `examples/keypad-demo.html`
+  - Visual keypad demo with connect flow, key press highlights, and per-key image updates.
+- `examples/dialpad-demo.html`
+  - Visual dialpad demo with button press overlays and live roller indicators.
