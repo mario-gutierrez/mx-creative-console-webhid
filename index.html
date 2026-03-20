@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console Monitor - WebHID</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🎛️ MX Creative Console</h1>
+            <p class="subtitle">WebHID Monitoring Tool</p>
+        </header>
+
+        <main>
+            <section class="connection-section">
+                <button id="connectBtn" class="primary-btn">Scan / Grant Devices</button>
+                <div id="connectionStatus" class="status-message"></div>
+            </section>
+
+            <section id="availableDevicesSection" class="device-section">
+                <h2>Available Devices to Connect</h2>
+                <div id="availableDevicesList" class="available-devices-list"></div>
+            </section>
+
+            <section id="keypadGroup" class="device-group hidden">
+                <div class="group-heading">
+                    <h2>Keypad Device</h2>
+                    <span id="keypadBadge" class="device-badge">Disconnected</span>
+                </div>
+
+                <section id="keypadDeviceInfo" class="device-section compact-section hidden">
+                    <h3>Device Information</h3>
+                    <div class="info-grid compact-grid">
+                        <div class="info-item">
+                            <span class="label">Device Name:</span>
+                            <span id="keypadDeviceName" class="value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Product ID:</span>
+                            <span id="keypadProductId" class="value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Vendor ID:</span>
+                            <span id="keypadVendorId" class="value">-</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="keypadSection" class="events-section compact-section hidden">
+                    <div class="events-header">
+                        <h3>Live Keypad Monitor</h3>
+                        <button id="clearKeysBtn" class="secondary-btn">Clear Keys</button>
+                    </div>
+                    <div class="events-info compact-info">
+                        <p>Persistent keypad state for keys 1-9 plus PREV and NEXT.</p>
+                        <p class="note">Normal keys are parsed from report 0x13 and merged with diverted Feature 1B04
+                            events.</p>
+                    </div>
+                    <div class="pressed-keys-panel keypad-panel prominent-panel">
+                        <div class="pressed-keys-header">
+                            <span class="label">Pressed Keys</span>
+                            <span id="pressedKeysSummary" class="pressed-keys-summary">No keys pressed</span>
+                        </div>
+                        <div id="keypadGrid" class="keypad-grid"></div>
+                        <div id="keypadStatus" class="keypad-status">Waiting for key events...</div>
+                    </div>
+                </section>
+
+                <section id="contextualDisplaySection" class="control-section compact-section hidden">
+                    <h3>Contextual Display Upload</h3>
+                    <div class="mode-status compact-status">
+                        <span class="label">Support:</span>
+                        <span id="contextualDisplaySupport" class="value">Checking...</span>
+                    </div>
+                    <div class="mode-status compact-status">
+                        <span class="label">Display Resolution:</span>
+                        <span id="contextualDisplayResolution" class="value">-</span>
+                    </div>
+                    <div class="mode-status compact-status">
+                        <span class="label">Button Count:</span>
+                        <span id="contextualDisplayButtons" class="value">-</span>
+                    </div>
+
+                    <div class="contextual-display-controls compact-controls">
+                        <label class="label" for="contextualDisplayFile">Image File</label>
+                        <input id="contextualDisplayFile" type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp,image/bmp">
+                        <div id="contextualDisplayFileName" class="contextual-image-meta">No image selected</div>
+
+                        <label class="label" for="contextualDisplayMode">Update Mode</label>
+                        <select id="contextualDisplayMode">
+                            <option value="single">Update one key</option>
+                            <option value="all">Apply same image to all 9 keys</option>
+                            <option value="full">Map image over full keypad display</option>
+                        </select>
+
+                        <label class="label" for="contextualDisplayKey">Target Key (1-9)</label>
+                        <select id="contextualDisplayKey">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                        </select>
+
+                        <button id="uploadContextualImageBtn" class="secondary-btn">Upload Image</button>
+                    </div>
+                </section>
+
+                <section id="brightnessSection" class="control-section compact-section hidden">
+                    <h3>Brightness Control</h3>
+                    <div class="mode-status compact-status">
+                        <span class="label">Support:</span>
+                        <span id="brightnessSupport" class="value">Checking...</span>
+                    </div>
+                    <div class="mode-status compact-status">
+                        <span class="label">Device Range:</span>
+                        <span id="brightnessRange" class="value">-</span>
+                    </div>
+                    <div class="mode-status compact-status">
+                        <span class="label">Current Brightness:</span>
+                        <span id="brightnessCurrent" class="value">-</span>
+                    </div>
+                    <div class="brightness-controls compact-controls">
+                        <label class="label" for="brightnessSlider">Brightness (0-100%)</label>
+                        <input id="brightnessSlider" type="range" min="0" max="100" step="1" value="50">
+                        <div class="brightness-input-row">
+                            <input id="brightnessPercent" type="number" min="0" max="100" step="1" value="50">
+                            <button id="setBrightnessBtn" class="secondary-btn">Apply Brightness</button>
+                            <button id="refreshBrightnessBtn" class="secondary-btn">Refresh</button>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <section id="dialpadGroup" class="device-group hidden">
+                <div class="group-heading">
+                    <h2>Dialpad Device</h2>
+                    <span id="dialpadBadge" class="device-badge">Disconnected</span>
+                </div>
+
+                <section id="dialpadDeviceInfo" class="device-section compact-section hidden">
+                    <h3>Device Information</h3>
+                    <div class="info-grid compact-grid">
+                        <div class="info-item">
+                            <span class="label">Device Name:</span>
+                            <span id="dialpadDeviceName" class="value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Product ID:</span>
+                            <span id="dialpadProductId" class="value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Vendor ID:</span>
+                            <span id="dialpadVendorId" class="value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Number of Rollers:</span>
+                            <span id="numRollers" class="value">-</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="rollersSection" class="rollers-section compact-section hidden">
+                    <h3>Roller Capabilities</h3>
+                    <div id="rollersList" class="rollers-list compact-rollers"></div>
+                </section>
+
+                <section id="controlSection" class="control-section compact-section hidden">
+                    <h3>Roller Control</h3>
+                    <div class="switch-row compact-switch-row">
+                        <span class="label">Divert Rollers</span>
+                        <label class="toggle-switch" for="diversionToggle">
+                            <input id="diversionToggle" type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="mode-status compact-status">
+                        <span class="label">Current Mode:</span>
+                        <span id="currentMode" class="value">-</span>
+                    </div>
+                    <div class="mode-status compact-status">
+                        <span class="label">Diversion Status:</span>
+                        <span id="diversionStatus" class="value">-</span>
+                    </div>
+                </section>
+
+                <section id="eventsSection" class="events-section compact-section roller-monitor-prominent hidden">
+                    <div class="events-header">
+                        <h3>Live Roller Monitor</h3>
+                        <button id="clearEventsBtn" class="secondary-btn">Clear Events</button>
+                    </div>
+                    <div id="lastEventState" class="last-event-state"></div>
+                    <div class="events-info compact-info">
+                        <p>Rotate the rollers on your device to update the live monitor above.</p>
+                        <p class="note">Note: events only appear when rollers are in Diverted mode.</p>
+                    </div>
+                </section>
+
+                <section id="dialpadSection" class="events-section compact-section hidden">
+                    <div class="events-header">
+                        <h3>Live Dialpad Monitor</h3>
+                        <button id="clearDialpadKeysBtn" class="secondary-btn">Clear Keys</button>
+                    </div>
+                    <div class="events-info compact-info">
+                        <p>Persistent dialpad state for 4 dial keys.</p>
+                        <p class="note">Dial keys are tracked from diverted Feature 1B04 events.</p>
+                    </div>
+                    <div class="pressed-keys-panel dialpad-panel prominent-panel">
+                        <div class="pressed-keys-header">
+                            <span class="label">Pressed Dial Keys</span>
+                            <span id="pressedDialKeySummary" class="pressed-keys-summary">No dial keys pressed</span>
+                        </div>
+                        <div id="dialpadKeysCompact" class="pressed-keys-compact dialpad-prominent"></div>
+                    </div>
+                </section>
+            </section>
+
+        </main>
+
+        <footer>
+            <p>WebHID Monitoring Tool for MX Creative devices</p>
+            <p class="note">Uses HID++ features 0x4610, 0x1B04, 0x8040, 0x19A1, and 0x0007 when available.</p>
+        </footer>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>
