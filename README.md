@@ -125,3 +125,5 @@ const client = new MXCreativeConsoleClient({ debug?: boolean });
   - Scan, connect, and print key/roller events.
 - `examples/brightness-and-image.html`
   - Connect keypad, control brightness, and upload contextual images.
+- `examples/keypad-demo.html`
+  - Visual keypad demo with connect flow, key press highlights, and per-key image updates.

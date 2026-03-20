@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console - Keypad Demo</title>
+    <style>
+        body {
+            font-family: Segoe UI, sans-serif;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        button {
+            padding: 8px 14px;
+            cursor: pointer;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .key {
+            width: 100px;
+            height: 100px;
+            background: #000;
+            border: 2px solid #444;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.1s;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .key.pressed {
+            border-color: #0f0;
+        }
+
+        .paging {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #555;
+            user-select: none;
+        }
+
+        .page-btn.pressed {
+            background: #0f0;
+            color: #000;
+        }
+
+        #log {
+            font-family: Consolas, monospace;
+            margin-top: 20px;
+            color: #aaa;
+            text-align: center;
+            min-height: 24px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>MX Creative Console</h1>
+    <button id="connectBtn">Connect Device</button>
+
+    <div class="grid" id="grid"></div>
+    <div class="paging">
+        <div class="page-btn" id="key-9">P1</div>
+        <div class="page-btn" id="key-10">P2</div>
+    </div>
+
+    <div id="log">Waiting for connection...</div>
+
+    <script type="module">
+        import { MXCreativeConsoleClient } from '../js/mxCreativeConsole.js';
+
+        const client = new MXCreativeConsoleClient();
+        const connectBtn = document.getElementById('connectBtn');
+        const gridEl = document.getElementById('grid');
+        const logEl = document.getElementById('log');
+
+        const controlIdToKeyIndex = new Map([
+            [0x0001, 0],
+            [0x0002, 1],
+            [0x0003, 2],
+            [0x0004, 3],
+            [0x0005, 4],
+            [0x0006, 5],
+            [0x0007, 6],
+            [0x0008, 7],
+            [0x0009, 8],
+            [0x01a1, 9],
+            [0x01a2, 10]
+        ]);
+
+        let connected = false;
+        let previousPressed = new Set();
+
+        for (let i = 0; i < 9; i++) {
+            const key = document.createElement('div');
+            key.className = 'key';
+            key.id = `key-${i}`;
+            key.textContent = String(i + 1);
+            key.addEventListener('click', () => {
+                if (connected) {
+                    updateButtonImage(i).catch((error) => {
+                        setLog(`Image upload error: ${error.message}`);
+                    });
+                }
+            });
+            gridEl.appendChild(key);
+        }
+
+        function setLog(message) {
+            logEl.textContent = message;
+        }
+
+        function updatePressedVisuals(currentPressed) {
+            for (let i = 0; i <= 10; i++) {
+                const el = document.getElementById(`key-${i}`);
+                if (!el) {
+                    continue;
+                }
+                el.classList.toggle('pressed', currentPressed.has(i));
+            }
+        }
+
+        client.on('status', ({ message, isError }) => {
+            setLog(isError ? `Error: ${message}` : message);
+        });
+
+        client.on('keypadKeysChanged', ({ activeControlIds }) => {
+            const currentPressed = new Set();
+            for (const controlId of activeControlIds) {
+                const keyIndex = controlIdToKeyIndex.get(controlId);
+                if (keyIndex !== undefined) {
+                    currentPressed.add(keyIndex);
+                }
+            }
+
+            for (const keyIndex of currentPressed) {
+                if (!previousPressed.has(keyIndex)) {
+                    setLog(`Key Down: ${keyIndex}`);
+                    if (keyIndex < 9) {
+                        updateButtonImage(keyIndex).catch((error) => {
+                            setLog(`Image upload error: ${error.message}`);
+                        });
+                    }
+                }
+            }
+
+            for (const keyIndex of previousPressed) {
+                if (!currentPressed.has(keyIndex)) {
+                    setLog(`Key Up: ${keyIndex}`);
+                }
+            }
+
+            previousPressed = currentPressed;
+            updatePressedVisuals(currentPressed);
+        });
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                await client.requestDeviceAccessAndScan();
+                const devices = client.getAvailableDevices();
+                const keypad = devices.find((device) => device.role === 'keypad');
+
+                if (!keypad) {
+                    throw new Error('No keypad device found after scan.');
+                }
+
+                await client.connectAvailableDevice(keypad.index);
+                connected = true;
+                connectBtn.disabled = true;
+                setLog(`Connected: ${keypad.friendlyName}`);
+
+                for (let i = 0; i < 9; i++) {
+                    await updateButtonImage(i, 200);
+                }
+            } catch (error) {
+                setLog(`Connection error: ${error.message}`);
+            }
+        });
+
+        async function updateButtonImage(index, color = -1) {
+            const hue = color >= 0 ? color : Math.random() * 360;
+            const size = 118;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                throw new Error('Could not create 2D context.');
+            }
+
+            ctx.fillStyle = `hsl(${hue}, 100%, 40%)`;
+            ctx.fillRect(0, 0, size, size);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(index + 1), size / 2, size / 2);
+
+            const blob = await new Promise((resolve, reject) => {
+                canvas.toBlob((result) => {
+                    if (!result) {
+                        reject(new Error('Failed to encode image.'));
+                        return;
+                    }
+                    resolve(result);
+                }, 'image/jpeg', 0.9);
+            });
+
+            const imageFile = new File([blob], `key-${index + 1}.jpg`, { type: 'image/jpeg' });
+            await client.uploadContextualDisplayImage(imageFile, {
+                mode: 'single',
+                keyNumber: index + 1
+            });
+        }
+    </script>
+</body>
+
+</html>
