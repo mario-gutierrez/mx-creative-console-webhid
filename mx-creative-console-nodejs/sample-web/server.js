@@ -12,6 +12,13 @@ const app = express();
 const port = Number(config.web?.port) || 8788;
 
 app.use(express.static(path.resolve(__dirname, 'public')));
+
+// Serve the reusable client library so browser pages can import it.
+app.get('/mxCreativeConsoleNodeClient.js', (_req, res) => {
+    res.type('application/javascript');
+    res.sendFile(path.resolve(rootDir, 'mxCreativeConsoleNodeClient.js'));
+});
+
 app.get('/api/config', (_req, res) => {
     res.json({ websocketPort: Number(config.websocket?.port) || 8787 });
 });

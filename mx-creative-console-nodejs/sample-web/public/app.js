@@ -1,3 +1,5 @@
+import { MXCreativeConsoleNodeClient } from '/mxCreativeConsoleNodeClient.js';
+
 const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const brightnessEl = document.getElementById('brightnessValue');
@@ -5,9 +7,6 @@ const brightnessSlider = document.getElementById('brightnessSlider');
 const fileInput = document.getElementById('fileInput');
 const modeSelect = document.getElementById('modeSelect');
 const keySelect = document.getElementById('keySelect');
-
-let ws = null;
-let requestCounter = 0;
 
 function logLine(message) {
     const now = new Date().toLocaleTimeString();
@@ -20,109 +19,97 @@ function updateStatus(message, isError = false) {
     statusEl.style.background = isError ? '#ffdada' : '#dceff8';
 }
 
-function nextRequestId() {
-    requestCounter += 1;
-    return `req-${requestCounter}`;
-}
-
-async function fileToDataUri(file) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    let binary = '';
-    for (const byte of bytes) {
-        binary += String.fromCharCode(byte);
-    }
-
-    const base64 = btoa(binary);
-    return `data:${file.type || 'application/octet-stream'};base64,${base64}`;
-}
-
-async function connect() {
+async function main() {
     const config = await fetch('/api/config').then((res) => res.json());
-    ws = new WebSocket(`ws://localhost:${config.websocketPort}`);
 
-    ws.addEventListener('open', () => {
+    const client = new MXCreativeConsoleNodeClient({
+        url: `ws://localhost:${config.websocketPort}`,
+        debug: false
+    });
+
+    // ── Status & connection events ──────────────────────────────────────────
+    client.on('status', ({ message, isError }) => {
+        updateStatus(message, isError);
+        logLine(`STATUS: ${message}`);
+    });
+    client.on('connected', () => {
         updateStatus('Connected to provider.');
-        logLine('WebSocket connected.');
-        ws.send(JSON.stringify({ requestId: nextRequestId(), action: 'getState' }));
+        logLine('Connected.');
+    });
+    client.on('disconnected', ({ code }) => {
+        updateStatus('Disconnected. Reconnecting…', true);
+        logLine(`Disconnected (code ${code}).`);
+    });
+    client.on('error', (err) => {
+        updateStatus(`Connection error: ${err.message}`, true);
     });
 
-    ws.addEventListener('message', (event) => {
-        const msg = JSON.parse(event.data);
+    // ── Device lifecycle events ─────────────────────────────────────────────
+    client.on('stateChanged', (state) => logLine(`stateChanged: ${JSON.stringify(state)}`));
+    client.on('roleConnected', (data) => logLine(`roleConnected: ${JSON.stringify(data)}`));
+    client.on('roleDisconnected', (data) => logLine(`roleDisconnected: ${JSON.stringify(data)}`));
 
-        if (msg.type === 'status') {
-            updateStatus(msg.message, Boolean(msg.isError));
-            logLine(`STATUS: ${msg.message}`);
-            return;
+    // ── Hardware events ─────────────────────────────────────────────────────
+    client.on('keypadKeysChanged', (data) => logLine(`keypadKeysChanged: ${JSON.stringify(data)}`));
+    client.on('dialpadKeysChanged', (data) => logLine(`dialpadKeysChanged: ${JSON.stringify(data)}`));
+    client.on('rollerEvent', (data) => logLine(`rollerEvent: ${JSON.stringify(data)}`));
+
+    client.on('brightnessChanged', ({ percent }) => {
+        brightnessEl.textContent = String(percent);
+        brightnessSlider.value = String(percent);
+        logLine(`brightnessChanged: ${percent}%`);
+    });
+
+    client.on('imageUploadComplete', (data) => logLine(`imageUploadComplete: ${JSON.stringify(data)}`));
+
+    // ── Connect ─────────────────────────────────────────────────────────────
+    await client.connect();
+    logLine(`state: ${JSON.stringify(client.getConnectionState())}`);
+
+    // ── Button handlers ─────────────────────────────────────────────────────
+    document.getElementById('refreshStateBtn').addEventListener('click', async () => {
+        try {
+            await client.scanAuthorizedDevices();
+            logLine(`state: ${JSON.stringify(client.getConnectionState())}`);
+        } catch (err) {
+            updateStatus(err.message, true);
         }
+    });
 
-        if (msg.type === 'event') {
-            if (msg.event === 'brightnessChanged' && msg.data) {
-                brightnessEl.textContent = String(msg.data.percent);
-                brightnessSlider.value = String(msg.data.percent);
+    document.getElementById('setRollerDivertedBtn').addEventListener('click', async () => {
+        try {
+            await client.setRollerDiverted(true);
+        } catch (err) {
+            updateStatus(err.message, true);
+        }
+    });
+
+    document.getElementById('setBrightnessBtn').addEventListener('click', async () => {
+        try {
+            await client.setBrightnessPercent(Number(brightnessSlider.value));
+        } catch (err) {
+            updateStatus(err.message, true);
+        }
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+        try {
+            const file = fileInput.files?.[0];
+            if (!file) {
+                updateStatus('Select an image first.', true);
+                return;
             }
-
-            logLine(`${msg.event}: ${JSON.stringify(msg.data)}`);
-            return;
+            await client.uploadContextualDisplayImage(file, {
+                mode: modeSelect.value,
+                keyNumber: Number(keySelect.value)
+            });
+        } catch (err) {
+            updateStatus(err.message, true);
         }
-
-        if (msg.type === 'response') {
-            if (msg.ok) {
-                logLine(`RESPONSE ${msg.requestId || '-'}: ${JSON.stringify(msg.data)}`);
-            } else {
-                updateStatus(msg.error || 'Request failed', true);
-                logLine(`ERROR ${msg.requestId || '-'}: ${msg.error}`);
-            }
-            return;
-        }
-
-        if (msg.type === 'state') {
-            logLine(`STATE: ${JSON.stringify(msg.state)}`);
-        }
-    });
-
-    ws.addEventListener('error', () => {
-        updateStatus('WebSocket error. Is the provider running?', true);
-    });
-
-    ws.addEventListener('close', () => {
-        updateStatus('Disconnected.', true);
-        logLine('WebSocket closed.');
     });
 }
 
-document.getElementById('refreshStateBtn').addEventListener('click', () => {
-    ws.send(JSON.stringify({ requestId: nextRequestId(), action: 'getState' }));
-});
-
-document.getElementById('setRollerDivertedBtn').addEventListener('click', () => {
-    ws.send(JSON.stringify({ requestId: nextRequestId(), action: 'setRollerDiverted', enabled: true }));
-});
-
-document.getElementById('setBrightnessBtn').addEventListener('click', () => {
-    ws.send(JSON.stringify({ requestId: nextRequestId(), action: 'setBrightness', percent: Number(brightnessSlider.value) }));
-});
-
-document.getElementById('uploadBtn').addEventListener('click', async () => {
-    try {
-        const file = fileInput.files?.[0];
-        if (!file) {
-            updateStatus('Select an image first.', true);
-            return;
-        }
-
-        const imageBase64 = await fileToDataUri(file);
-        ws.send(JSON.stringify({
-            requestId: nextRequestId(),
-            action: 'setImage',
-            mode: modeSelect.value,
-            keyNumber: Number(keySelect.value),
-            imageBase64
-        }));
-    } catch (error) {
-        updateStatus(error.message, true);
-    }
-});
-
-connect().catch((error) => {
-    updateStatus(error.message, true);
+main().catch((err) => {
+    document.getElementById('status').textContent = `Failed to start: ${err.message}`;
+    document.getElementById('status').style.background = '#ffdada';
 });
