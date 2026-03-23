@@ -40,8 +40,10 @@ export class MXCreativeConsoleProvider extends EventEmitter {
 
         this.wss = null;
         this.devicePollTimer = null;
+        this.pollMs = Number(config.provider?.devicePollMs) || 1000;
         this.reconnectCooldownMs = Number(config.provider?.reconnectCooldownMs) || 3000;
         this.reconnectNotBeforeByPath = new Map();
+        this._pollingEnabled = true;  // Track if polling should be active
 
         this.connectedPaths = new Set();
         this.keypadConnection = null;
@@ -138,20 +140,39 @@ export class MXCreativeConsoleProvider extends EventEmitter {
             this.status(`Initial device scan failed: ${error.message}`, true);
         });
 
-        const pollMs = Number(this.config.provider?.devicePollMs) || 1000;
+        this._startPolling();
+    }
+
+    _startPolling() {
+        if (this.devicePollTimer) return;
+        this.log('Device polling started.');
         this.devicePollTimer = setInterval(() => {
             this.scanAndSyncDevices().catch((error) => {
                 this.status(`Device scan failed: ${error.message}`, true);
             });
-        }, pollMs);
+        }, this.pollMs);
+    }
+
+    _stopPolling() {
+        if (!this.devicePollTimer) return;
+        this.log('Device polling stopped (both devices connected).');
+        clearInterval(this.devicePollTimer);
+        this.devicePollTimer = null;
+    }
+
+    _updatePollingState() {
+        // Stop polling if both devices are already connected.
+        // Resume polling if any device is missing.
+        const allConnected = this.keypadConnection && this.dialpadConnection;
+        if (allConnected && this.devicePollTimer) {
+            this._stopPolling();
+        } else if (!allConnected && !this.devicePollTimer) {
+            this._startPolling();
+        }
     }
 
     async stop() {
-        if (this.devicePollTimer) {
-            clearInterval(this.devicePollTimer);
-            this.devicePollTimer = null;
-        }
-
+        this._stopPolling();
         await this.disconnectAll();
 
         if (this.wss) {
@@ -182,9 +203,12 @@ export class MXCreativeConsoleProvider extends EventEmitter {
         const devices = listCreativeConsoleHidDevices(LOGITECH_VENDOR_ID, [PRODUCT_ID_KEYPAD, PRODUCT_ID_DIALPAD]);
         const foundPaths = new Set(devices.map((device) => device.path));
 
+        let stateChanged = false;
+
         for (const connection of [this.keypadConnection, this.dialpadConnection]) {
             if (connection && !foundPaths.has(connection.path)) {
                 await this.disconnectRole(connection.role, true);
+                stateChanged = true;
             }
         }
 
@@ -205,9 +229,14 @@ export class MXCreativeConsoleProvider extends EventEmitter {
             }
 
             await this.connectDevice(deviceInfo, role);
+            stateChanged = true;
         }
 
-        this.broadcast({ type: 'state', state: this.getConnectionState() });
+        // Only broadcast state if something actually changed; adjust polling state if needed.
+        if (stateChanged) {
+            this.broadcast({ type: 'state', state: this.getConnectionState() });
+            this._updatePollingState();
+        }
     }
 
     async connectDevice(deviceInfo, role) {
@@ -295,6 +324,7 @@ export class MXCreativeConsoleProvider extends EventEmitter {
             });
             this.publishEvent('stateChanged', this.getConnectionState());
             this.status(`${role} connected.`);
+            this._updatePollingState();
         } catch (error) {
             this.status(`Failed connecting ${role}: ${error.message}`, true);
             if (path) {
@@ -429,6 +459,7 @@ export class MXCreativeConsoleProvider extends EventEmitter {
 
         this.publishEvent('roleDisconnected', { role, path: connection.path, disconnectedByScan });
         this.publishEvent('stateChanged', this.getConnectionState());
+        this._updatePollingState();
     }
 
     async disconnectAll() {
