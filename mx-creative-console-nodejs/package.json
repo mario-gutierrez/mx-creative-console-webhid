@@ -1,0 +1,19 @@
+{
+    "name": "mx-creative-console-nodejs",
+    "version": "1.0.0",
+    "description": "Headless Node.js API provider for Logitech MX Creative Console",
+    "type": "module",
+    "main": "src/index.js",
+    "scripts": {
+        "provider": "node src/index.js",
+        "sample:cli:events": "node sample-cli/basic-events.js",
+        "sample:cli:brightness-image": "node sample-cli/brightness-and-image.js",
+        "sample:web": "node sample-web/server.js"
+    },
+    "dependencies": {
+        "express": "^4.21.2",
+        "node-hid": "^3.1.2",
+        "sharp": "^0.33.5",
+        "ws": "^8.18.1"
+    }
+}

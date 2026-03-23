@@ -1,0 +1,12 @@
+{
+    "websocket": {
+        "port": 8787
+    },
+    "provider": {
+        "debug": true,
+        "devicePollMs": 1000
+    },
+    "web": {
+        "port": 8788
+    }
+}

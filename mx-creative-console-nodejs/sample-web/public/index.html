@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console Node.js Samples</title>
+    <style>
+        body {
+            font-family: Segoe UI, sans-serif;
+            margin: 20px;
+            background: #f4f7f9;
+            color: #1b2a33;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        .row {
+            margin-bottom: 12px;
+        }
+
+        input,
+        select,
+        button {
+            padding: 8px;
+            margin-right: 8px;
+        }
+
+        #status {
+            background: #dceff8;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        #log {
+            background: #101820;
+            color: #d7f1ff;
+            padding: 12px;
+            border-radius: 8px;
+            max-height: 360px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .panel {
+            background: #ffffff;
+            border: 1px solid #dce3ea;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>MX Creative Console Node.js API Client</h1>
+    <div id="status">Connecting...</div>
+
+    <div class="panel">
+        <h2>Basic Events</h2>
+        <div class="row">
+            <button id="refreshStateBtn">Refresh State</button>
+            <button id="setRollerDivertedBtn">Enable Roller Diverted Mode</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Brightness + Image</h2>
+        <div class="row">
+            <label>Brightness: <span id="brightnessValue">-</span>%</label>
+            <input id="brightnessSlider" type="range" min="0" max="100" value="50">
+            <button id="setBrightnessBtn">Set Brightness</button>
+        </div>
+
+        <div class="row">
+            <input id="fileInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/bmp">
+        </div>
+
+        <div class="row">
+            <select id="modeSelect">
+                <option value="single">Update one key</option>
+                <option value="all">Apply to all keys</option>
+                <option value="full">Full display</option>
+            </select>
+            <select id="keySelect">
+                <option value="1">Key 1</option>
+                <option value="2">Key 2</option>
+                <option value="3">Key 3</option>
+                <option value="4">Key 4</option>
+                <option value="5">Key 5</option>
+                <option value="6">Key 6</option>
+                <option value="7">Key 7</option>
+                <option value="8">Key 8</option>
+                <option value="9">Key 9</option>
+            </select>
+            <button id="uploadBtn">Upload Image</button>
+        </div>
+    </div>
+
+    <pre id="log"></pre>
+
+    <script type="module" src="./app.js"></script>
+</body>
+
+</html>
