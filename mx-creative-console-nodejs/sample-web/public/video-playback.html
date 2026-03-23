@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MX Creative Console Video Playback</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #eef3f6;
+            --panel: #ffffff;
+            --text: #18303c;
+            --muted: #55707d;
+            --border: #d6e0e6;
+            --accent: #006b5f;
+            --accent-soft: #d9f0eb;
+            --error: #9d2f2f;
+            --error-soft: #ffe1e1;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #f7fbfd 0%, var(--bg) 55%, #dde8ed 100%);
+            color: var(--text);
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+        }
+
+        p {
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .status {
+            margin: 16px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: var(--accent-soft);
+        }
+
+        .status.error {
+            background: var(--error-soft);
+            color: var(--error);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(320px, 1.25fr) minmax(280px, 0.9fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 10px 30px rgba(24, 48, 60, 0.08);
+        }
+
+        .panel h2 {
+            margin-top: 0;
+        }
+
+        .controls {
+            display: grid;
+            gap: 12px;
+        }
+
+        .control-row {
+            display: grid;
+            gap: 8px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+            background: var(--text);
+            color: #fff;
+            border: 0;
+        }
+
+        button.secondary {
+            background: #637781;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 14px;
+            background: #0f1417;
+            aspect-ratio: 16 / 9;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .metric {
+            padding: 12px;
+            border-radius: 12px;
+            background: #f5f8fa;
+            border: 1px solid var(--border);
+        }
+
+        .metric strong {
+            display: block;
+            font-size: 24px;
+            margin-top: 4px;
+        }
+
+        #log {
+            margin: 0;
+            max-height: 320px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding: 14px;
+            border-radius: 12px;
+            background: #0f1a20;
+            color: #d4edf8;
+        }
+
+        @media (max-width: 860px) {
+
+            .grid,
+            .control-grid,
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+
+            main {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>Real-Time Keypad Video Playback</h1>
+        <p>
+            Select a local video and stream its frames to the MX Creative Keypad display through
+            <code>MXCreativeConsoleNodeClient</code>. This example uses the existing Node.js provider,
+            draws each frame to an offscreen canvas, encodes it as JPEG, and uploads frames in sequence.
+        </p>
+        <p><a href="./index.html">Back to the main sample page</a></p>
+
+        <div id="status" class="status">Connecting to provider...</div>
+
+        <div class="grid">
+            <section class="panel">
+                <h2>Preview</h2>
+                <video id="previewVideo" controls muted playsinline preload="metadata"></video>
+
+                <div class="metrics">
+                    <div class="metric">
+                        Requested FPS
+                        <strong id="fpsValue">6</strong>
+                    </div>
+                    <div class="metric">
+                        Uploaded Frames
+                        <strong id="uploadedFrames">0</strong>
+                    </div>
+                    <div class="metric">
+                        Last Upload
+                        <strong id="lastUploadMs">-</strong>
+                    </div>
+                    <div class="metric">
+                        Device State
+                        <strong id="deviceState">Waiting</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Controls</h2>
+                <div class="controls">
+                    <div class="control-row">
+                        <label for="videoInput">Video file</label>
+                        <input id="videoInput" type="file" accept="video/*">
+                    </div>
+
+                    <div class="control-grid">
+                        <div class="control-row">
+                            <label for="modeSelect">Upload mode</label>
+                            <select id="modeSelect">
+                                <option value="full" selected>Full display</option>
+                                <option value="all">All 9 keys</option>
+                                <option value="single">Single key</option>
+                            </select>
+                        </div>
+
+                        <div class="control-row">
+                            <label for="keySelect">Key number</label>
+                            <select id="keySelect">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="control-grid">
+                        <div class="control-row">
+                            <label for="fpsInput">FPS cap</label>
+                            <input id="fpsInput" type="range" min="1" max="12" value="6">
+                        </div>
+
+                        <div class="control-row">
+                            <label for="qualityInput">JPEG quality</label>
+                            <input id="qualityInput" type="range" min="0.3" max="0.95" value="0.72" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="control-grid">
+                        <button id="connectBtn" class="secondary">Refresh Device State</button>
+                        <button id="startBtn">Start Device Playback</button>
+                    </div>
+
+                    <button id="stopBtn" class="secondary" disabled>Stop Device Playback</button>
+                </div>
+            </section>
+        </div>
+
+        <section class="panel">
+            <h2>Event Log</h2>
+            <pre id="log"></pre>
+        </section>
+    </main>
+
+    <script type="module" src="./video-playback.js"></script>
+</body>
+
+</html>

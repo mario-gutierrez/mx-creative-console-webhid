@@ -141,6 +141,13 @@ npm run sample:web
 
 Open `http://localhost:8788`.
 
+The sample web app also includes a dedicated real-time video playback page for the keypad display:
+
+- `http://localhost:8788/video-playback.html`
+- Select a local video file in the browser.
+- Choose `full`, `all`, or `single` upload mode.
+- Start playback to stream frames to the keypad via `MXCreativeConsoleNodeClient.uploadContextualDisplayImage()`.
+
 ## Notes
 
 - This app uses `node-hid`, `ws`, and `sharp`.
